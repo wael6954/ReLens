@@ -8,11 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
       --bg:          #0c0a08;
@@ -22,19 +18,16 @@
       --border-soft: #1c1510;
       --amber:       #c07828;
       --amber-light: #e09840;
-      --amber-dim:   rgba(192, 120, 40, 0.12);
-      --amber-glow:  rgba(192, 120, 40, 0.35);
+      --amber-dim:   rgba(192,120,40,0.12);
+      --amber-glow:  rgba(192,120,40,0.35);
       --text:        #bfaa8a;
       --text-dim:    #5a4a34;
       --text-bright: #ddd0b8;
       --hover-bg:    #181410;
-      --active-bg:   rgba(192, 120, 40, 0.10);
+      --active-bg:   rgba(192,120,40,0.10);
     }
 
-    html, body {
-      height: 100%;
-      overflow: hidden;
-    }
+    html, body { height: 100%; overflow: hidden; }
 
     body {
       background: var(--bg);
@@ -45,7 +38,6 @@
       flex-direction: column;
     }
 
-    /* Grain texture overlay */
     body::after {
       content: '';
       position: fixed;
@@ -56,7 +48,7 @@
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23g)'/%3E%3C/svg%3E");
     }
 
-    /* ── TOP BAR ─────────────────────────────────── */
+    /* TOP BAR */
     .topbar {
       height: 50px;
       flex-shrink: 0;
@@ -67,970 +59,977 @@
       border-bottom: 1px solid var(--border);
       background: linear-gradient(180deg, #0f0d0a 0%, var(--bg) 100%);
     }
-
-    .logo {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-    }
-
+    .logo { display: flex; align-items: baseline; gap: 10px; }
     .logo-mark {
       font-family: 'Cormorant Garamond', serif;
-      font-weight: 300;
-      font-size: 25px;
-      letter-spacing: 0.14em;
-      color: var(--text-bright);
-      line-height: 1;
+      font-weight: 300; font-size: 25px;
+      letter-spacing: 0.14em; color: var(--text-bright); line-height: 1;
     }
-
-    .logo-mark em {
-      font-style: italic;
-      color: var(--amber);
-    }
-
-    .logo-sub {
-      font-size: 8px;
-      letter-spacing: 0.38em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-    }
-
-    .topbar-right {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
+    .logo-mark em { font-style: italic; color: var(--amber); }
+    .logo-sub { font-size: 8px; letter-spacing: 0.38em; text-transform: uppercase; color: var(--text-dim); }
+    .topbar-right { display: flex; gap: 8px; align-items: center; }
 
     .btn {
       padding: 7px 15px;
       font-family: 'Space Mono', monospace;
-      font-size: 10px;
-      letter-spacing: 0.1em;
-      cursor: pointer;
-      border: none;
-      transition: all 0.18s;
-      text-transform: uppercase;
+      font-size: 10px; letter-spacing: 0.1em;
+      cursor: pointer; border: none;
+      transition: all 0.18s; text-transform: uppercase;
     }
-
     .btn-ghost {
-      background: transparent;
-      color: var(--text-dim);
+      background: transparent; color: var(--text-dim);
       border: 1px solid var(--border);
     }
+    .btn-ghost:hover { color: var(--text); border-color: #3a2c1a; }
+    .btn-primary { background: var(--amber); color: #0c0a08; font-weight: 700; letter-spacing: 0.12em; }
+    .btn-primary:hover { background: var(--amber-light); }
 
-    .btn-ghost:hover {
-      color: var(--text);
-      border-color: #3a2c1a;
-    }
+    /* LAYOUT */
+    .app-body { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 
-    .btn-primary {
-      background: var(--amber);
-      color: #0c0a08;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-    }
-
-    .btn-primary:hover {
-      background: var(--amber-light);
-    }
-
-    /* ── LAYOUT ──────────────────────────────────── */
-    .app-body {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-      min-height: 0;
-    }
-
-    /* ── LEFT PANEL ──────────────────────────────── */
+    /* LEFT PANEL */
     .left-panel {
-      width: 210px;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
+      width: 210px; flex-shrink: 0;
+      display: flex; flex-direction: column;
       border-right: 1px solid var(--border);
-      background: var(--panel-bg);
-      overflow: hidden;
+      background: var(--panel-bg); overflow: hidden;
     }
-
-    .panel-header {
-      padding: 13px 15px 10px;
-      border-bottom: 1px solid var(--border-soft);
-      flex-shrink: 0;
-    }
-
-    .panel-label {
-      font-size: 8px;
-      letter-spacing: 0.42em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-    }
-
-    .filter-scroll {
-      flex: 1;
-      overflow-y: auto;
-      padding: 6px 0 16px;
-    }
-
+    .panel-header { padding: 13px 15px 10px; border-bottom: 1px solid var(--border-soft); flex-shrink: 0; }
+    .panel-label { font-size: 8px; letter-spacing: 0.42em; text-transform: uppercase; color: var(--text-dim); }
+    .filter-scroll { flex: 1; overflow-y: auto; padding: 6px 0 16px; }
     .filter-scroll::-webkit-scrollbar { width: 2px; }
     .filter-scroll::-webkit-scrollbar-track { background: transparent; }
-    .filter-scroll::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 2px;
-    }
-
-    .filter-group {
-      margin-top: 6px;
-    }
-
+    .filter-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .filter-group { margin-top: 6px; }
     .group-label {
-      font-size: 7.5px;
-      letter-spacing: 0.45em;
-      text-transform: uppercase;
-      color: var(--amber);
-      opacity: 0.6;
-      padding: 10px 15px 5px;
+      font-size: 7.5px; letter-spacing: 0.45em; text-transform: uppercase;
+      color: var(--amber); opacity: 0.6; padding: 10px 15px 5px;
     }
-
     .filter-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 15px;
-      cursor: pointer;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 15px; cursor: pointer;
       border-left: 2px solid transparent;
-      transition: all 0.13s;
-      gap: 6px;
+      transition: all 0.13s; gap: 6px;
     }
+    .filter-item:hover { background: var(--hover-bg); color: var(--text-bright); }
+    .filter-item.active { background: var(--active-bg); border-left-color: var(--amber); color: var(--amber-light); }
+    .fi-name { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fi-iso { font-size: 8.5px; color: var(--text-dim); flex-shrink: 0; letter-spacing: 0.05em; }
+    .filter-item.active .fi-iso { color: rgba(192,120,40,0.6); }
 
-    .filter-item:hover {
-      background: var(--hover-bg);
-      color: var(--text-bright);
-    }
-
-    .filter-item.active {
-      background: var(--active-bg);
-      border-left-color: var(--amber);
-      color: var(--amber-light);
-    }
-
-    .fi-name {
-      font-size: 11.5px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .fi-iso {
-      font-size: 8.5px;
-      color: var(--text-dim);
-      flex-shrink: 0;
-      letter-spacing: 0.05em;
-    }
-
-    .filter-item.active .fi-iso {
-      color: rgba(192, 120, 40, 0.6);
-    }
-
-    /* ── CENTER PANEL ────────────────────────────── */
+    /* CENTER PANEL */
     .center-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      min-width: 0;
-      position: relative;
+      flex: 1; display: flex; flex-direction: column;
+      overflow: hidden; min-width: 0; position: relative;
     }
-
-    /* Upload zone */
     .upload-zone {
-      flex: 1;
-      margin: 18px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      border: 1px dashed #2a2010;
-      border-radius: 3px;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-      position: relative;
-      overflow: hidden;
+      flex: 1; margin: 18px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      border: 1px dashed #2a2010; border-radius: 3px;
+      cursor: pointer; transition: border-color 0.2s, background 0.2s;
+      position: relative; overflow: hidden;
     }
-
-    /* Corner accents on upload zone */
-    .upload-zone::before,
-    .upload-zone::after {
-      content: '';
-      position: absolute;
-      width: 20px;
-      height: 20px;
-      border-color: var(--border);
-      border-style: solid;
-      pointer-events: none;
+    .upload-zone::before, .upload-zone::after {
+      content: ''; position: absolute;
+      width: 20px; height: 20px;
+      border-color: var(--border); border-style: solid; pointer-events: none;
     }
-    .upload-zone::before {
-      top: 12px; left: 12px;
-      border-width: 1px 0 0 1px;
-    }
-    .upload-zone::after {
-      bottom: 12px; right: 12px;
-      border-width: 0 1px 1px 0;
-    }
-
-    .upload-zone:hover {
-      border-color: #3a2c1a;
-    }
-
-    .upload-zone.dragging {
-      border-color: var(--amber);
-      background: var(--amber-dim);
-    }
-
-    .upload-icon {
-      width: 56px;
-      height: 56px;
-      color: var(--text-dim);
-      opacity: 0.5;
-    }
-
+    .upload-zone::before { top: 12px; left: 12px; border-width: 1px 0 0 1px; }
+    .upload-zone::after  { bottom: 12px; right: 12px; border-width: 0 1px 1px 0; }
+    .upload-zone:hover { border-color: #3a2c1a; }
+    .upload-zone.dragging { border-color: var(--amber); background: var(--amber-dim); }
+    .upload-icon { width: 56px; height: 56px; color: var(--text-dim); opacity: 0.5; }
     .upload-heading {
       font-family: 'Cormorant Garamond', serif;
-      font-size: 24px;
-      font-weight: 300;
-      letter-spacing: 0.06em;
-      color: var(--text-bright);
-      text-align: center;
+      font-size: 24px; font-weight: 300;
+      letter-spacing: 0.06em; color: var(--text-bright); text-align: center;
     }
-
     .upload-sub {
-      font-size: 9px;
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      text-align: center;
-      margin-top: -8px;
+      font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
+      color: var(--text-dim); text-align: center; margin-top: -8px;
     }
-
     .upload-cta {
-      margin-top: 6px;
-      padding: 8px 22px;
-      background: transparent;
-      border: 1px solid var(--border);
+      margin-top: 6px; padding: 8px 22px;
+      background: transparent; border: 1px solid var(--border);
       color: var(--text-dim);
       font-family: 'Space Mono', monospace;
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: all 0.18s;
+      font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+      cursor: pointer; transition: all 0.18s;
     }
-
-    .upload-cta:hover {
-      border-color: var(--amber);
-      color: var(--amber);
-    }
-
-    .formats-note {
-      font-size: 8px;
-      letter-spacing: 0.15em;
-      color: #3a2c1a;
-      text-transform: uppercase;
-    }
-
+    .upload-cta:hover { border-color: var(--amber); color: var(--amber); }
+    .formats-note { font-size: 8px; letter-spacing: 0.15em; color: #3a2c1a; text-transform: uppercase; }
     #file-input { display: none; }
 
-    /* Canvas */
     .canvas-wrap {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-      display: none;
+      flex: 1; position: relative; overflow: hidden; display: none;
+    }
+    .canvas-wrap.visible { display: block; }
+    #gl-canvas  { display: block; width: 100%; height: 100%; }
+    #overlay-2d {
+      position: absolute; inset: 0;
+      pointer-events: none; z-index: 2;
     }
 
-    .canvas-wrap.visible {
-      display: block;
-    }
-
-    #ab-canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-
-    /* ── RIGHT PANEL ─────────────────────────────── */
+    /* RIGHT PANEL */
     .right-panel {
-      width: 236px;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
+      width: 236px; flex-shrink: 0;
+      display: flex; flex-direction: column;
       border-left: 1px solid var(--border);
-      background: var(--panel-bg2);
-      overflow: hidden;
+      background: var(--panel-bg2); overflow: hidden;
     }
-
-    .adj-scroll {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px 0 24px;
-    }
-
+    .adj-scroll { flex: 1; overflow-y: auto; padding: 8px 0 24px; }
     .adj-scroll::-webkit-scrollbar { width: 2px; }
     .adj-scroll::-webkit-scrollbar-track { background: transparent; }
     .adj-scroll::-webkit-scrollbar-thumb { background: var(--border); }
-
-    .adj-group {
-      padding: 13px 17px 14px;
-      border-bottom: 1px solid var(--border-soft);
-    }
-
-    .adj-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 11px;
-    }
-
-    .adj-name {
-      font-size: 9px;
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-    }
-
-    .adj-val {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--amber);
-      min-width: 28px;
-      text-align: right;
-    }
-
-    /* Custom range slider */
+    .adj-group { padding: 13px 17px 14px; border-bottom: 1px solid var(--border-soft); }
+    .adj-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 11px; }
+    .adj-name { font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--text-dim); }
+    .adj-val { font-size: 11px; font-weight: 700; color: var(--amber); min-width: 28px; text-align: right; }
     .adj-slider {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 100%;
-      height: 2px;
-      border-radius: 1px;
-      outline: none;
-      cursor: pointer;
-      /* track fill updated via JS custom property */
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 2px; border-radius: 1px;
+      outline: none; cursor: pointer;
       background: linear-gradient(
         to right,
-        var(--amber) 0%,
-        var(--amber) var(--pct, 50%),
-        #1e1810 var(--pct, 50%),
-        #1e1810 100%
+        var(--amber) 0%, var(--amber) var(--pct, 50%),
+        #1e1810 var(--pct, 50%), #1e1810 100%
       );
     }
-
     .adj-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 13px;
-      height: 13px;
-      border-radius: 50%;
-      background: var(--amber);
-      border: 2px solid var(--bg);
+      width: 13px; height: 13px; border-radius: 50%;
+      background: var(--amber); border: 2px solid var(--bg);
       cursor: pointer;
-      box-shadow: 0 0 0 0 var(--amber-glow);
-      transition: box-shadow 0.18s;
+      box-shadow: 0 0 0 0 var(--amber-glow); transition: box-shadow 0.18s;
     }
-
     .adj-slider::-webkit-slider-thumb:hover,
-    .adj-slider:active::-webkit-slider-thumb {
-      box-shadow: 0 0 0 4px var(--amber-glow);
-    }
-
+    .adj-slider:active::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--amber-glow); }
     .adj-slider::-moz-range-thumb {
-      width: 13px;
-      height: 13px;
-      border-radius: 50%;
-      background: var(--amber);
-      border: 2px solid var(--bg);
-      cursor: pointer;
+      width: 13px; height: 13px; border-radius: 50%;
+      background: var(--amber); border: 2px solid var(--bg); cursor: pointer;
     }
-
-    .adj-slider::-moz-range-track {
-      height: 2px;
-      border-radius: 1px;
-      background: #1e1810;
-    }
-
-    /* Reset button per adjustment */
+    .adj-slider::-moz-range-track { height: 2px; border-radius: 1px; background: #1e1810; }
     .adj-reset {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--text-dim);
-      font-family: 'Space Mono', monospace;
-      font-size: 8px;
-      letter-spacing: 0.1em;
-      padding: 0;
-      margin-top: 6px;
-      display: block;
-      opacity: 0;
-      transition: opacity 0.15s, color 0.15s;
+      background: none; border: none; cursor: pointer;
+      color: var(--text-dim); font-family: 'Space Mono', monospace;
+      font-size: 8px; letter-spacing: 0.1em;
+      padding: 0; margin-top: 6px; display: block;
+      opacity: 0; transition: opacity 0.15s, color 0.15s;
     }
-
-    .adj-group:hover .adj-reset {
-      opacity: 1;
-    }
-
-    .adj-reset:hover {
-      color: var(--amber);
-    }
-
-    /* Footer note in right panel */
-    .panel-footer {
-      padding: 14px 17px;
-      border-top: 1px solid var(--border-soft);
-      flex-shrink: 0;
-    }
-
-    .panel-footer p {
-      font-size: 8px;
-      letter-spacing: 0.15em;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      line-height: 1.8;
-    }
-
-    .panel-footer span {
-      color: var(--amber);
-      opacity: 0.7;
-    }
+    .adj-group:hover .adj-reset { opacity: 1; }
+    .adj-reset:hover { color: var(--amber); }
+    .panel-footer { padding: 14px 17px; border-top: 1px solid var(--border-soft); flex-shrink: 0; }
+    .panel-footer p { font-size: 8px; letter-spacing: 0.15em; color: var(--text-dim); text-transform: uppercase; line-height: 1.8; }
+    .panel-footer span { color: var(--amber); opacity: 0.7; }
   </style>
 </head>
 <body>
 
-<!-- TOP BAR -->
 <header class="topbar">
   <div class="logo">
     <div class="logo-mark">Re<em>Lens</em></div>
     <div class="logo-sub">Film Emulation Studio</div>
   </div>
   <div class="topbar-right">
+    <button class="btn btn-ghost" id="btn-export" style="display:none">&#8681; Export JPEG</button>
     <button class="btn btn-ghost">My Photos</button>
     <button class="btn btn-primary">&#43; New Photo</button>
   </div>
 </header>
 
-<!-- APP BODY -->
 <div class="app-body">
 
-  <!-- LEFT PANEL: Film Stocks -->
   <aside class="left-panel">
-    <div class="panel-header">
-      <div class="panel-label">Film Stocks</div>
-    </div>
+    <div class="panel-header"><div class="panel-label">Film Stocks</div></div>
     <div class="filter-scroll">
-
       <div class="filter-group">
         <div class="group-label">Color Negative</div>
-        <div class="filter-item active" data-filter="portra400">
-          <span class="fi-name">Portra 400</span>
-          <span class="fi-iso">400</span>
-        </div>
-        <div class="filter-item" data-filter="portra160">
-          <span class="fi-name">Portra 160</span>
-          <span class="fi-iso">160</span>
-        </div>
-        <div class="filter-item" data-filter="ektar100">
-          <span class="fi-name">Ektar 100</span>
-          <span class="fi-iso">100</span>
-        </div>
-        <div class="filter-item" data-filter="superia400">
-          <span class="fi-name">Superia 400</span>
-          <span class="fi-iso">400</span>
-        </div>
-        <div class="filter-item" data-filter="gold200">
-          <span class="fi-name">Gold 200</span>
-          <span class="fi-iso">200</span>
-        </div>
-        <div class="filter-item" data-filter="ultramax400">
-          <span class="fi-name">UltraMax 400</span>
-          <span class="fi-iso">400</span>
-        </div>
+        <div class="filter-item active" data-filter="portra400"><span class="fi-name">Portra 400</span><span class="fi-iso">400</span></div>
+        <div class="filter-item" data-filter="portra160"><span class="fi-name">Portra 160</span><span class="fi-iso">160</span></div>
+        <div class="filter-item" data-filter="ektar100"><span class="fi-name">Ektar 100</span><span class="fi-iso">100</span></div>
+        <div class="filter-item" data-filter="superia400"><span class="fi-name">Superia 400</span><span class="fi-iso">400</span></div>
+        <div class="filter-item" data-filter="gold200"><span class="fi-name">Gold 200</span><span class="fi-iso">200</span></div>
+        <div class="filter-item" data-filter="ultramax400"><span class="fi-name">UltraMax 400</span><span class="fi-iso">400</span></div>
       </div>
-
       <div class="filter-group">
         <div class="group-label">Color Reversal</div>
-        <div class="filter-item" data-filter="velvia50">
-          <span class="fi-name">Velvia 50</span>
-          <span class="fi-iso">50</span>
-        </div>
-        <div class="filter-item" data-filter="provia100">
-          <span class="fi-name">Provia 100F</span>
-          <span class="fi-iso">100</span>
-        </div>
-        <div class="filter-item" data-filter="cinestill800">
-          <span class="fi-name">CineStill 800T</span>
-          <span class="fi-iso">800</span>
-        </div>
-        <div class="filter-item" data-filter="cinestill50">
-          <span class="fi-name">CineStill 50D</span>
-          <span class="fi-iso">50</span>
-        </div>
+        <div class="filter-item" data-filter="velvia50"><span class="fi-name">Velvia 50</span><span class="fi-iso">50</span></div>
+        <div class="filter-item" data-filter="provia100"><span class="fi-name">Provia 100F</span><span class="fi-iso">100</span></div>
+        <div class="filter-item" data-filter="cinestill800"><span class="fi-name">CineStill 800T</span><span class="fi-iso">800</span></div>
+        <div class="filter-item" data-filter="cinestill50"><span class="fi-name">CineStill 50D</span><span class="fi-iso">50</span></div>
       </div>
-
       <div class="filter-group">
         <div class="group-label">Black &amp; White</div>
-        <div class="filter-item" data-filter="hp5">
-          <span class="fi-name">HP5 Plus</span>
-          <span class="fi-iso">400</span>
-        </div>
-        <div class="filter-item" data-filter="trix">
-          <span class="fi-name">Tri-X 400</span>
-          <span class="fi-iso">400</span>
-        </div>
-        <div class="filter-item" data-filter="delta3200">
-          <span class="fi-name">Delta 3200</span>
-          <span class="fi-iso">3200</span>
-        </div>
-        <div class="filter-item" data-filter="panf">
-          <span class="fi-name">Pan F Plus</span>
-          <span class="fi-iso">50</span>
-        </div>
-        <div class="filter-item" data-filter="tmax400">
-          <span class="fi-name">T-Max 400</span>
-          <span class="fi-iso">400</span>
-        </div>
+        <div class="filter-item" data-filter="hp5"><span class="fi-name">HP5 Plus</span><span class="fi-iso">400</span></div>
+        <div class="filter-item" data-filter="trix"><span class="fi-name">Tri-X 400</span><span class="fi-iso">400</span></div>
+        <div class="filter-item" data-filter="delta3200"><span class="fi-name">Delta 3200</span><span class="fi-iso">3200</span></div>
+        <div class="filter-item" data-filter="panf"><span class="fi-name">Pan F Plus</span><span class="fi-iso">50</span></div>
+        <div class="filter-item" data-filter="tmax400"><span class="fi-name">T-Max 400</span><span class="fi-iso">400</span></div>
       </div>
-
       <div class="filter-group">
         <div class="group-label">Specialty</div>
-        <div class="filter-item" data-filter="lomopurple">
-          <span class="fi-name">Lomochrome Purple</span>
-          <span class="fi-iso">100</span>
-        </div>
-        <div class="filter-item" data-filter="redscale">
-          <span class="fi-name">Redscale</span>
-          <span class="fi-iso">—</span>
-        </div>
-        <div class="filter-item" data-filter="crossprocess">
-          <span class="fi-name">Cross Process</span>
-          <span class="fi-iso">—</span>
-        </div>
-        <div class="filter-item" data-filter="infrared">
-          <span class="fi-name">Infrared</span>
-          <span class="fi-iso">—</span>
-        </div>
+        <div class="filter-item" data-filter="lomopurple"><span class="fi-name">Lomochrome Purple</span><span class="fi-iso">100</span></div>
+        <div class="filter-item" data-filter="redscale"><span class="fi-name">Redscale</span><span class="fi-iso">—</span></div>
+        <div class="filter-item" data-filter="crossprocess"><span class="fi-name">Cross Process</span><span class="fi-iso">—</span></div>
+        <div class="filter-item" data-filter="infrared"><span class="fi-name">Infrared</span><span class="fi-iso">—</span></div>
       </div>
-
     </div>
   </aside>
 
-  <!-- CENTER PANEL -->
   <main class="center-panel">
-
-    <!-- Upload zone -->
     <div class="upload-zone" id="upload-zone">
-      <!-- Camera SVG icon -->
       <svg class="upload-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="3" y="16" width="58" height="38" rx="3" stroke="currentColor" stroke-width="1.5"/>
         <path d="M21 16V13C21 11.9 21.9 11 23 11H41C42.1 11 43 11.9 43 13V16" stroke="currentColor" stroke-width="1.5"/>
         <circle cx="32" cy="35" r="11" stroke="currentColor" stroke-width="1.5"/>
         <circle cx="32" cy="35" r="6" stroke="currentColor" stroke-width="1.5"/>
         <circle cx="50" cy="25" r="2.5" fill="currentColor"/>
-        <!-- Sprocket holes -->
         <rect x="7" y="19" width="3" height="4" rx="0.5" fill="currentColor" opacity="0.4"/>
         <rect x="7" y="27" width="3" height="4" rx="0.5" fill="currentColor" opacity="0.4"/>
         <rect x="54" y="19" width="3" height="4" rx="0.5" fill="currentColor" opacity="0.4"/>
         <rect x="54" y="27" width="3" height="4" rx="0.5" fill="currentColor" opacity="0.4"/>
       </svg>
-
       <div class="upload-heading">Drop a frame here</div>
       <div class="upload-sub">or browse your negatives</div>
       <button class="upload-cta" id="upload-cta">Open Film</button>
       <div class="formats-note">JPG &nbsp;·&nbsp; PNG &nbsp;·&nbsp; WEBP &nbsp;·&nbsp; TIFF</div>
-
       <input type="file" id="file-input" accept="image/*">
     </div>
 
-    <!-- Canvas (hidden until image loaded) -->
     <div class="canvas-wrap" id="canvas-wrap">
-      <canvas id="ab-canvas"></canvas>
+      <canvas id="gl-canvas"></canvas>
+      <canvas id="overlay-2d"></canvas>
     </div>
-
   </main>
 
-  <!-- RIGHT PANEL: Adjustments -->
   <aside class="right-panel">
-    <div class="panel-header">
-      <div class="panel-label">Adjustments</div>
-    </div>
+    <div class="panel-header"><div class="panel-label">Adjustments</div></div>
     <div class="adj-scroll">
-
       <div class="adj-group">
-        <div class="adj-row">
-          <span class="adj-name">Grain</span>
-          <span class="adj-val" id="v-grain">0</span>
-        </div>
+        <div class="adj-row"><span class="adj-name">Grain</span><span class="adj-val" id="v-grain">0</span></div>
         <input class="adj-slider" type="range" id="s-grain" min="0" max="100" value="0">
         <button class="adj-reset" data-target="s-grain">reset</button>
       </div>
-
       <div class="adj-group">
-        <div class="adj-row">
-          <span class="adj-name">Vignette</span>
-          <span class="adj-val" id="v-vignette">0</span>
-        </div>
+        <div class="adj-row"><span class="adj-name">Vignette</span><span class="adj-val" id="v-vignette">0</span></div>
         <input class="adj-slider" type="range" id="s-vignette" min="0" max="100" value="0">
         <button class="adj-reset" data-target="s-vignette">reset</button>
       </div>
-
       <div class="adj-group">
-        <div class="adj-row">
-          <span class="adj-name">Fade</span>
-          <span class="adj-val" id="v-fade">0</span>
-        </div>
+        <div class="adj-row"><span class="adj-name">Fade</span><span class="adj-val" id="v-fade">0</span></div>
         <input class="adj-slider" type="range" id="s-fade" min="0" max="100" value="0">
         <button class="adj-reset" data-target="s-fade">reset</button>
       </div>
-
       <div class="adj-group">
-        <div class="adj-row">
-          <span class="adj-name">Color Temp</span>
-          <span class="adj-val" id="v-colortemp">0</span>
-        </div>
+        <div class="adj-row"><span class="adj-name">Color Temp</span><span class="adj-val" id="v-colortemp">0</span></div>
         <input class="adj-slider" type="range" id="s-colortemp" min="-100" max="100" value="0">
         <button class="adj-reset" data-target="s-colortemp">reset</button>
       </div>
-
       <div class="adj-group">
-        <div class="adj-row">
-          <span class="adj-name">Saturation</span>
-          <span class="adj-val" id="v-saturation">0</span>
-        </div>
+        <div class="adj-row"><span class="adj-name">Saturation</span><span class="adj-val" id="v-saturation">0</span></div>
         <input class="adj-slider" type="range" id="s-saturation" min="-100" max="100" value="0">
         <button class="adj-reset" data-target="s-saturation">reset</button>
       </div>
-
       <div class="adj-group">
-        <div class="adj-row">
-          <span class="adj-name">Halation</span>
-          <span class="adj-val" id="v-halation">0</span>
-        </div>
+        <div class="adj-row"><span class="adj-name">Halation</span><span class="adj-val" id="v-halation">0</span></div>
         <input class="adj-slider" type="range" id="s-halation" min="0" max="100" value="0">
         <button class="adj-reset" data-target="s-halation">reset</button>
       </div>
-
     </div>
     <div class="panel-footer">
-      <p>Stock &nbsp;<span>Portra 400</span></p>
-      <p>Mode &nbsp;<span>Color Neg.</span></p>
+      <p>Stock &nbsp;<span id="footer-stock">Portra 400</span></p>
+      <p>Pipeline &nbsp;<span>WebGL · 3-pass</span></p>
     </div>
   </aside>
 
-</div><!-- /app-body -->
+</div>
 
 <script>
-  /* ─── Filter list ─────────────────────────────── */
-  const filterItems = document.querySelectorAll('.filter-item');
-  filterItems.forEach(item => {
-    item.addEventListener('click', () => {
-      filterItems.forEach(f => f.classList.remove('active'));
-      item.classList.add('active');
-    });
-  });
+'use strict';
 
-  /* ─── Sliders ─────────────────────────────────── */
-  const sliderMap = {
-    'grain':      { el: null, valEl: null, default: 0 },
-    'vignette':   { el: null, valEl: null, default: 0 },
-    'fade':       { el: null, valEl: null, default: 0 },
-    'colortemp':  { el: null, valEl: null, default: 0 },
-    'saturation': { el: null, valEl: null, default: 0 },
-    'halation':   { el: null, valEl: null, default: 0 },
-  };
+/* ═══════════════════════════════════════════════════════════════
+   SHADER SOURCES
+═══════════════════════════════════════════════════════════════ */
 
-  Object.keys(sliderMap).forEach(key => {
-    const s = document.getElementById('s-' + key);
-    const v = document.getElementById('v-' + key);
-    sliderMap[key].el = s;
-    sliderMap[key].valEl = v;
-    if (!s) return;
+const VERT = `
+  attribute vec2 a_pos;
+  varying vec2 v_uv;
+  void main() {
+    v_uv = a_pos * 0.5 + 0.5;
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+  }
+`;
 
-    function syncSlider() {
-      const min = parseFloat(s.min);
-      const max = parseFloat(s.max);
-      const val = parseFloat(s.value);
-      const pct = ((val - min) / (max - min)) * 100;
-      s.style.setProperty('--pct', pct.toFixed(1) + '%');
-      v.textContent = val;
+/* Pass 1 – colour grading: LUT · colour matrix · RGB shift · saturation · shadow lift · halation */
+const FRAG_MAIN = `
+  precision highp float;
+  varying vec2 v_uv;
+
+  uniform sampler2D u_image;
+  uniform sampler2D u_lut;        /* 256×1 RGBA — R/G/B channels = per-channel curves */
+  uniform mat3      u_colorMat;   /* column-major 3×3 colour matrix                   */
+  uniform vec3      u_rgbShift;   /* additive per-channel offset                      */
+  uniform float     u_saturation; /* 0 = greyscale, 1 = normal, >1 = boosted          */
+  uniform float     u_shadowLift; /* 0..1 — lift shadow floor                        */
+  uniform float     u_halation;   /* 0..1 — red bloom on highlights                  */
+  uniform vec2      u_imgOffset;  /* letterbox UV origin                              */
+  uniform vec2      u_imgScale;   /* letterbox UV extent                              */
+
+  void main() {
+    vec2 imgUV = (v_uv - u_imgOffset) / u_imgScale;
+    if (imgUV.x < 0.0 || imgUV.x > 1.0 || imgUV.y < 0.0 || imgUV.y > 1.0) {
+      gl_FragColor = vec4(0.047, 0.039, 0.031, 1.0);
+      return;
     }
 
-    s.addEventListener('input', syncSlider);
-    syncSlider();
-  });
+    vec3 c = texture2D(u_image, imgUV).rgb;
 
-  /* Reset buttons */
-  document.querySelectorAll('.adj-reset').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const targetId = btn.dataset.target;
-      const s = document.getElementById(targetId);
-      if (!s) return;
-      s.value = s.dataset.default ?? 0;
-      s.dispatchEvent(new Event('input'));
-    });
-  });
+    /* Shadow lift: compress blacks upward, leaves highlights alone */
+    vec3 shadow = (1.0 - c) * (1.0 - c);
+    c += u_shadowLift * shadow * 0.32;
 
-  /* ─── Upload ──────────────────────────────────── */
-  const uploadZone  = document.getElementById('upload-zone');
-  const canvasWrap  = document.getElementById('canvas-wrap');
-  const fileInput   = document.getElementById('file-input');
-  const uploadCta   = document.getElementById('upload-cta');
-  const canvas      = document.getElementById('ab-canvas');
-  const ctx         = canvas.getContext('2d');
+    /* Per-channel tone curve via 256-entry 1D LUT.
+       Texel centres: i/256 + 0.5/256 = i*0.00390625 + 0.001953125 */
+    float lutR = texture2D(u_lut, vec2(c.r * 0.99609375 + 0.001953125, 0.5)).r;
+    float lutG = texture2D(u_lut, vec2(c.g * 0.99609375 + 0.001953125, 0.5)).g;
+    float lutB = texture2D(u_lut, vec2(c.b * 0.99609375 + 0.001953125, 0.5)).b;
+    c = vec3(lutR, lutG, lutB);
 
-  uploadCta.addEventListener('click', e => {
-    e.stopPropagation();
-    fileInput.click();
-  });
+    /* 3×3 colour matrix (column-major in GLSL) */
+    c = u_colorMat * c;
 
-  uploadZone.addEventListener('click', () => fileInput.click());
+    /* Additive RGB shifts (colour temperature etc.) */
+    c += u_rgbShift;
 
-  uploadZone.addEventListener('dragover', e => {
-    e.preventDefault();
-    uploadZone.classList.add('dragging');
-  });
-  uploadZone.addEventListener('dragleave', e => {
-    if (!uploadZone.contains(e.relatedTarget))
-      uploadZone.classList.remove('dragging');
-  });
-  uploadZone.addEventListener('drop', e => {
-    e.preventDefault();
-    uploadZone.classList.remove('dragging');
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) loadImage(file);
-  });
+    /* Saturation — Rec.709 luminance */
+    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    c = mix(vec3(lum), c, u_saturation);
 
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files[0]) loadImage(fileInput.files[0]);
-  });
+    /* Halation — red channel bleeds into bright highlights (film back-scatter) */
+    float hiMask = max(0.0, lum - 0.72) * (1.0 / 0.28);
+    c.r += hiMask * hiMask * u_halation * 0.45;
+    c.g += hiMask * hiMask * u_halation * 0.06;
 
-  /* ─── Image & A/B state ───────────────────────── */
-  let img         = null;
-  let sliderPos   = 0.5;    // 0–1
-  let dragging    = false;
-  let imgBounds   = { x: 0, y: 0, w: 0, h: 0 };
+    gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+  }
+`;
 
-  function loadImage(file) {
-    const url = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => {
-      img = image;
-      URL.revokeObjectURL(url);
-      uploadZone.style.display = 'none';
-      canvasWrap.classList.add('visible');
-      fitCanvas();
-      draw();
-    };
-    image.onerror = () => URL.revokeObjectURL(url);
-    image.src = url;
+/* Pass 2 – grain: luminance-weighted hash noise with chroma amount */
+const FRAG_GRAIN = `
+  precision highp float;
+  varying vec2 v_uv;
+
+  uniform sampler2D u_tex;
+  uniform float     u_intensity; /* 0..1 normalised grain strength  */
+  uniform float     u_size;      /* grain pixel footprint            */
+  uniform float     u_chroma;    /* 0 = luma grain, 1 = colour grain */
+  uniform float     u_seed;      /* per-image random offset          */
+  uniform vec2      u_res;       /* canvas dimensions in pixels      */
+
+  float hash21(vec2 p) {
+    p  = fract(p * vec2(127.1, 311.7));
+    p += dot(p, p.yx + 19.19);
+    return fract(p.x * p.y);
   }
 
-  function fitCanvas() {
-    const rect = canvasWrap.getBoundingClientRect();
-    canvas.width  = Math.floor(rect.width);
-    canvas.height = Math.floor(rect.height);
-    calcImgBounds();
-  }
+  void main() {
+    vec4 col = texture2D(u_tex, v_uv);
+    float lum = dot(col.rgb, vec3(0.2126, 0.7152, 0.0722));
 
-  function calcImgBounds() {
-    if (!img) return;
-    const cw = canvas.width, ch = canvas.height;
-    const imgRatio = img.naturalWidth / img.naturalHeight;
-    const boxRatio = cw / ch;
-    let w, h, x, y;
-    if (imgRatio > boxRatio) {
-      w = cw; h = cw / imgRatio; x = 0; y = (ch - h) / 2;
+    /* Midtone-weighted mask — grain is minimal in pure blacks/whites */
+    float mask = lum * (1.0 - lum) * 4.0;
+
+    /* Snap UV to a grid of grain-size pixels */
+    vec2 gUV = floor(v_uv * u_res / u_size) + vec2(u_seed * 7.3, u_seed * 3.1);
+
+    float nl  = hash21(gUV)                     * 2.0 - 1.0;  /* luma noise   */
+    float nr  = hash21(gUV + vec2(17.3, 0.0))   * 2.0 - 1.0;
+    float ng  = hash21(gUV + vec2(0.0,  43.7))  * 2.0 - 1.0;
+    float nb  = hash21(gUV + vec2(71.9, 13.1))  * 2.0 - 1.0;
+
+    vec3 noise = mix(vec3(nl), vec3(nr, ng, nb), u_chroma);
+
+    col.rgb += noise * u_intensity * mask;
+    gl_FragColor = vec4(clamp(col.rgb, 0.0, 1.0), 1.0);
+  }
+`;
+
+/* Pass 3 – vignette + A/B composite */
+const FRAG_COMP = `
+  precision highp float;
+  varying vec2 v_uv;
+
+  uniform sampler2D u_processed; /* output of grain pass                 */
+  uniform sampler2D u_original;  /* raw image texture for BEFORE side    */
+  uniform float     u_vigStrength;
+  uniform float     u_vigPower;
+  uniform float     u_sliderPos; /* 0..1  (<0 = full processed for export) */
+  uniform vec2      u_imgOffset;
+  uniform vec2      u_imgScale;
+  uniform float     u_aspect;    /* canvas width / height                */
+
+  void main() {
+    vec4 color;
+
+    if (v_uv.x <= u_sliderPos) {
+      /* ── BEFORE: unprocessed original ── */
+      vec2 imgUV = (v_uv - u_imgOffset) / u_imgScale;
+      if (imgUV.x < 0.0 || imgUV.x > 1.0 || imgUV.y < 0.0 || imgUV.y > 1.0)
+        color = vec4(0.047, 0.039, 0.031, 1.0);
+      else
+        color = texture2D(u_original, imgUV);
     } else {
-      h = ch; w = ch * imgRatio; y = 0; x = (cw - w) / 2;
+      /* ── AFTER: processed + vignette ── */
+      color = texture2D(u_processed, v_uv);
+
+      /* Circular vignette, aspect-ratio corrected, normalised to corner = 1 */
+      vec2  c    = (v_uv - 0.5) * vec2(u_aspect, 1.0);
+      float maxD = sqrt(0.25 * u_aspect * u_aspect + 0.25);
+      float dist = length(c) / maxD;
+      float vig  = 1.0 - u_vigStrength * pow(clamp(dist, 0.0, 1.0), u_vigPower);
+      color.rgb  *= clamp(vig, 0.0, 1.0);
     }
-    imgBounds = { x, y, w, h };
+
+    gl_FragColor = color;
   }
+`;
 
-  /* ─── Draw ────────────────────────────────────── */
-  function draw() {
-    if (!img) return;
-    const cw = canvas.width, ch = canvas.height;
-    const sx = Math.round(sliderPos * cw);
-    const { x, y, w, h } = imgBounds;
+/* ═══════════════════════════════════════════════════════════════
+   WEBGL BOOTSTRAP
+═══════════════════════════════════════════════════════════════ */
 
-    ctx.clearRect(0, 0, cw, ch);
+const glCanvas = document.getElementById('gl-canvas');
+const ol       = document.getElementById('overlay-2d');
+const oc       = ol.getContext('2d');
 
-    // Dark letterbox background
-    ctx.fillStyle = '#0c0a08';
-    ctx.fillRect(0, 0, cw, ch);
+const gl = glCanvas.getContext('webgl', { preserveDrawingBuffer: true, alpha: false });
+if (!gl) { alert('WebGL is not supported in this browser.'); }
 
-    // ── AFTER side (right): full image ──
-    ctx.drawImage(img, x, y, w, h);
+function compileShader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    console.error('[ReLens shader]', gl.getShaderInfoLog(s));
+  return s;
+}
 
-    // ── BEFORE side (left): clipped ──
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, sx, ch);
-    ctx.clip();
-    ctx.drawImage(img, x, y, w, h);
-    ctx.restore();
+function makeProgram(vSrc, fSrc) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl.VERTEX_SHADER,   vSrc));
+  gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, fSrc));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS))
+    console.error('[ReLens program]', gl.getProgramInfoLog(p));
+  return p;
+}
 
-    // ── Divider line ──
-    ctx.save();
-    ctx.shadowColor = 'rgba(192, 120, 40, 0.6)';
-    ctx.shadowBlur  = 10;
-    ctx.strokeStyle = 'rgba(192, 120, 40, 0.85)';
-    ctx.lineWidth   = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(sx, 0);
-    ctx.lineTo(sx, ch);
-    ctx.stroke();
-    ctx.restore();
+const progMain  = makeProgram(VERT, FRAG_MAIN);
+const progGrain = makeProgram(VERT, FRAG_GRAIN);
+const progComp  = makeProgram(VERT, FRAG_COMP);
 
-    // ── Handle ──
-    const hy = ch / 2;
-    const hr = 20;
+/* Cache uniform locations */
+function cacheU(prog, names) {
+  const m = {};
+  names.forEach(n => { m[n] = gl.getUniformLocation(prog, n); });
+  return m;
+}
+const uMain  = cacheU(progMain,  ['u_image','u_lut','u_colorMat','u_rgbShift','u_saturation','u_shadowLift','u_halation','u_imgOffset','u_imgScale']);
+const uGrain = cacheU(progGrain, ['u_tex','u_intensity','u_size','u_chroma','u_seed','u_res']);
+const uComp  = cacheU(progComp,  ['u_processed','u_original','u_vigStrength','u_vigPower','u_sliderPos','u_imgOffset','u_imgScale','u_aspect']);
 
-    // Handle shadow
-    ctx.save();
-    ctx.shadowColor = 'rgba(192, 120, 40, 0.5)';
-    ctx.shadowBlur  = 16;
+/* Cached attribute locations */
+const aMain  = gl.getAttribLocation(progMain,  'a_pos');
+const aGrain = gl.getAttribLocation(progGrain, 'a_pos');
+const aComp  = gl.getAttribLocation(progComp,  'a_pos');
 
-    // Handle circle fill
-    ctx.fillStyle = '#131109';
-    ctx.beginPath();
-    ctx.arc(sx, hy, hr, 0, Math.PI * 2);
-    ctx.fill();
+/* Fullscreen quad */
+const quadBuf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
 
-    // Handle circle stroke
-    ctx.strokeStyle = 'rgba(192, 120, 40, 0.85)';
-    ctx.lineWidth   = 1.5;
-    ctx.stroke();
-    ctx.restore();
+function bindQuad(aLoc) {
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.enableVertexAttribArray(aLoc);
+  gl.vertexAttribPointer(aLoc, 2, gl.FLOAT, false, 0, 0);
+}
 
-    // Chevron arrows inside handle
-    ctx.fillStyle = 'rgba(192, 120, 40, 0.9)';
-    drawChevron(ctx, sx - 5, hy, 'left');
-    drawChevron(ctx, sx + 5, hy, 'right');
+/* FBO helpers */
+function makeFBO(w, h) {
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return { fbo, tex };
+}
 
-    // ── Labels ──
-    ctx.font = '700 9px Space Mono';
-    ctx.textBaseline = 'top';
+function resizeFBO(fb, w, h) {
+  gl.bindTexture(gl.TEXTURE_2D, fb.tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+}
 
-    const LX = x + 12;
-    const RX = x + w - 12;
-    const LY = y + 12;
+let fboA = null, fboB = null;
 
-    if (sx > LX + 60) {
-      drawLabel(ctx, 'BEFORE', LX, LY, 'left');
-    }
-    if (sx < RX - 50) {
-      drawLabel(ctx, 'AFTER', RX, LY, 'right');
-    }
+function ensureFBOs(w, h) {
+  if (!fboA) { fboA = makeFBO(w, h); fboB = makeFBO(w, h); }
+  else        { resizeFBO(fboA, w, h); resizeFBO(fboB, w, h); }
+}
+
+/* Texture binders */
+function bindTex(unit, tex) {
+  gl.activeTexture(gl.TEXTURE0 + unit);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+}
+
+/* ─── LUT texture (256×1 RGBA, R=red curve, G=green curve, B=blue curve) ─── */
+let lutTex = null;
+
+function uploadLUT(buildFn) {
+  /* buildFn(i) → { r, g, b }  where i is 0..255 and each value is 0..255 */
+  const data = new Uint8Array(256 * 4);
+  for (let i = 0; i < 256; i++) {
+    const { r, g, b } = buildFn(i);
+    data[i*4+0] = r;
+    data[i*4+1] = g;
+    data[i*4+2] = b;
+    data[i*4+3] = 255;
   }
+  if (!lutTex) lutTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, lutTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
 
-  function drawChevron(ctx, cx, cy, dir) {
+/* Identity LUT — each channel maps to itself */
+uploadLUT(i => ({ r: i, g: i, b: i }));
+
+/* ─── Image texture ─── */
+let imgTex = null;
+
+function uploadImageTex(img) {
+  if (!imgTex) imgTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, imgTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PIPELINE STATE
+═══════════════════════════════════════════════════════════════ */
+
+let sourceImg  = null;
+let sliderPos  = 0.5;
+let dragging   = false;
+let grainSeed  = 42;
+
+/* Letterbox mapping in WebGL UV space (y=0 at bottom of screen) */
+let imgUV = { ox: 0, oy: 0, sx: 1, sy: 1 };
+
+/* Uniform values (updated by sliders) */
+let uGrainVal    = 0;   /* 0..1  */
+let uVigVal      = 0;   /* 0..1  */
+let uFadeVal     = 0;   /* 0..1 → shadow lift */
+let uColorTempV  = 0;   /* -1..1 */
+let uSatVal      = 1;   /* 0..2  */
+let uHalVal      = 0;   /* 0..1  */
+
+/* Identity colour matrix (column-major for WebGL) */
+const IDENTITY_MAT3 = new Float32Array([1,0,0, 0,1,0, 0,0,1]);
+
+/* ═══════════════════════════════════════════════════════════════
+   LETTERBOX COMPUTATION
+═══════════════════════════════════════════════════════════════ */
+
+function computeImgUV(cw, ch) {
+  if (!sourceImg) return;
+  const iw = sourceImg.naturalWidth, ih = sourceImg.naturalHeight;
+  const ia = iw / ih, ca = cw / ch;
+  let sx, sy, ox, oy;
+  if (ia > ca) {
+    /* image wider → full width, bars top+bottom */
+    sx = 1.0; sy = ca / ia; ox = 0.0; oy = (1.0 - sy) * 0.5;
+  } else {
+    /* image taller → full height, bars left+right */
+    sy = 1.0; sx = ia / ca; oy = 0.0; ox = (1.0 - sx) * 0.5;
+  }
+  imgUV = { ox, oy, sx, sy };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDER PIPELINE  (runs fully on GPU, zero CPU image processing)
+═══════════════════════════════════════════════════════════════ */
+
+function renderPipeline(sp) {
+  if (!sourceImg || !imgTex || !lutTex) return;
+
+  const cw = glCanvas.width, ch = glCanvas.height;
+  ensureFBOs(cw, ch);
+  gl.viewport(0, 0, cw, ch);
+
+  /* ── PASS 1 — colour grading → fboA ── */
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fboA.fbo);
+  gl.useProgram(progMain);
+  bindQuad(aMain);
+
+  bindTex(0, imgTex); gl.uniform1i(uMain.u_image, 0);
+  bindTex(1, lutTex); gl.uniform1i(uMain.u_lut,   1);
+
+  /* Colour matrix — identity now; future film-stock matrices slot in here */
+  gl.uniformMatrix3fv(uMain.u_colorMat, false, IDENTITY_MAT3);
+
+  /* Colour temperature as additive RGB shift
+     warm (+) → more red/yellow; cool (−) → more blue */
+  const ct = uColorTempV * 0.055;
+  gl.uniform3f(uMain.u_rgbShift, ct, ct * 0.25, -ct);
+
+  gl.uniform1f(uMain.u_saturation,  uSatVal);
+  gl.uniform1f(uMain.u_shadowLift,  uFadeVal);
+  gl.uniform1f(uMain.u_halation,    uHalVal);
+  gl.uniform2f(uMain.u_imgOffset,   imgUV.ox, imgUV.oy);
+  gl.uniform2f(uMain.u_imgScale,    imgUV.sx, imgUV.sy);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  /* ── PASS 2 — grain → fboB ── */
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fboB.fbo);
+  gl.useProgram(progGrain);
+  bindQuad(aGrain);
+
+  bindTex(0, fboA.tex); gl.uniform1i(uGrain.u_tex, 0);
+  gl.uniform1f(uGrain.u_intensity, uGrainVal * 0.20);
+  gl.uniform1f(uGrain.u_size,      1.0 + uGrainVal * 2.5);
+  gl.uniform1f(uGrain.u_chroma,    0.28);
+  gl.uniform1f(uGrain.u_seed,      grainSeed);
+  gl.uniform2f(uGrain.u_res,       cw, ch);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  /* ── PASS 3 — vignette + A/B composite → screen ── */
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.useProgram(progComp);
+  bindQuad(aComp);
+
+  bindTex(0, fboB.tex); gl.uniform1i(uComp.u_processed, 0);
+  bindTex(1, imgTex);   gl.uniform1i(uComp.u_original,  1);
+
+  gl.uniform1f(uComp.u_vigStrength, uVigVal * 0.88);
+  gl.uniform1f(uComp.u_vigPower,    2.2);
+  gl.uniform1f(uComp.u_sliderPos,   sp);
+  gl.uniform2f(uComp.u_imgOffset,   imgUV.ox, imgUV.oy);
+  gl.uniform2f(uComp.u_imgScale,    imgUV.sx, imgUV.sy);
+  gl.uniform1f(uComp.u_aspect,      cw / ch);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  gl.flush();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   OVERLAY CANVAS  (2D: slider handle, labels, divider line)
+═══════════════════════════════════════════════════════════════ */
+
+function drawOverlay() {
+  if (!sourceImg) return;
+  const cw = ol.width, ch = ol.height;
+  const sx = Math.round(sliderPos * cw);
+  oc.clearRect(0, 0, cw, ch);
+
+  /* Divider line */
+  oc.save();
+  oc.shadowColor = 'rgba(192,120,40,0.55)';
+  oc.shadowBlur  = 10;
+  oc.strokeStyle = 'rgba(192,120,40,0.9)';
+  oc.lineWidth   = 1.5;
+  oc.beginPath(); oc.moveTo(sx, 0); oc.lineTo(sx, ch); oc.stroke();
+  oc.restore();
+
+  /* Handle circle */
+  const hy = ch / 2, hr = 20;
+  oc.save();
+  oc.shadowColor = 'rgba(192,120,40,0.4)';
+  oc.shadowBlur  = 14;
+  oc.fillStyle   = '#111009';
+  oc.beginPath(); oc.arc(sx, hy, hr, 0, Math.PI * 2); oc.fill();
+  oc.strokeStyle = 'rgba(192,120,40,0.88)'; oc.lineWidth = 1.5; oc.stroke();
+  oc.restore();
+
+  /* Chevrons inside handle */
+  function chevron(cx, cy, dir) {
     const s = 5, t = 3;
-    ctx.beginPath();
-    if (dir === 'left') {
-      ctx.moveTo(cx + t, cy - s);
-      ctx.lineTo(cx - t, cy);
-      ctx.lineTo(cx + t, cy + s);
-    } else {
-      ctx.moveTo(cx - t, cy - s);
-      ctx.lineTo(cx + t, cy);
-      ctx.lineTo(cx - t, cy + s);
-    }
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = 'rgba(192, 120, 40, 0.9)';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
+    oc.beginPath();
+    if (dir === 'l') { oc.moveTo(cx+t, cy-s); oc.lineTo(cx-t, cy); oc.lineTo(cx+t, cy+s); }
+    else             { oc.moveTo(cx-t, cy-s); oc.lineTo(cx+t, cy); oc.lineTo(cx-t, cy+s); }
+    oc.strokeStyle = 'rgba(192,120,40,0.9)';
+    oc.lineWidth = 1.6; oc.lineJoin = 'round'; oc.stroke();
+  }
+  chevron(sx - 6, hy, 'l');
+  chevron(sx + 6, hy, 'r');
+
+  /* Labels — placed just inside the image edges */
+  const imgPxLeft  = imgUV.ox * cw;
+  const imgPxRight = (imgUV.ox + imgUV.sx) * cw;
+  /* In WebGL UV y=0 is bottom; overlay 2D y=0 is top.
+     Top of image in 2D coords = ch * (1 - oy - sy) = ch * oy (symmetric letterbox) */
+  const imgPxTop   = Math.round(ch * imgUV.oy) + 14;
+
+  function label(text, x, align) {
+    oc.font = '700 9px "Space Mono", monospace';
+    oc.textBaseline = 'top';
+    oc.textAlign    = align;
+    const tw  = oc.measureText(text).width;
+    const pad = 6, lh = 16;
+    const bx  = align === 'left' ? x - pad : x - tw - pad;
+    oc.fillStyle = 'rgba(10,8,6,0.68)';
+    oc.beginPath();
+    oc.roundRect(bx, imgPxTop - 2, tw + pad * 2, lh, 2);
+    oc.fill();
+    oc.fillStyle = 'rgba(192,120,40,0.88)';
+    oc.fillText(text, x, imgPxTop);
   }
 
-  function drawLabel(ctx, text, x, y, align) {
-    ctx.textAlign = align;
-    // Background pill
-    const w = ctx.measureText(text).width;
-    const pad = 6, h = 16;
-    const bx = align === 'left' ? x - pad : x - w - pad;
-    ctx.fillStyle = 'rgba(12, 10, 8, 0.65)';
-    ctx.beginPath();
-    ctx.roundRect(bx, y - 2, w + pad * 2, h, 2);
-    ctx.fill();
-    // Text
-    ctx.fillStyle = 'rgba(192, 120, 40, 0.8)';
-    ctx.fillText(text, x, y + 1);
-  }
+  if (sx > imgPxLeft  + 64) label('BEFORE', imgPxLeft  + 14, 'left');
+  if (sx < imgPxRight - 64) label('AFTER',  imgPxRight - 14, 'right');
+}
 
-  /* ─── A/B interaction ─────────────────────────── */
-  function canvasCoords(e) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width  / rect.width;
-    const scaleY = canvas.height / rect.height;
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top)  * scaleY,
-    };
-  }
+/* ═══════════════════════════════════════════════════════════════
+   SCHEDULED RENDER (coalesces rapid slider changes)
+═══════════════════════════════════════════════════════════════ */
 
-  function hitHandle(x, y) {
-    const sx = sliderPos * canvas.width;
-    const hy = canvas.height / 2;
-    return Math.hypot(x - sx, y - hy) <= 28;
+let renderPending = false;
+function scheduleRender() {
+  if (!renderPending) {
+    renderPending = true;
+    requestAnimationFrame(() => {
+      renderPending = false;
+      renderPipeline(sliderPos);
+      drawOverlay();
+    });
   }
+}
 
-  function hitLine(x) {
-    return Math.abs(x - sliderPos * canvas.width) <= 8;
-  }
+/* ═══════════════════════════════════════════════════════════════
+   IMAGE LOADING
+═══════════════════════════════════════════════════════════════ */
 
-  canvas.addEventListener('mousedown', e => {
-    const { x, y } = canvasCoords(e);
-    if (hitHandle(x, y) || hitLine(x)) {
-      dragging = true;
-      canvas.style.cursor = 'col-resize';
-    }
+const uploadZone = document.getElementById('upload-zone');
+const canvasWrap = document.getElementById('canvas-wrap');
+const fileInput  = document.getElementById('file-input');
+const uploadCta  = document.getElementById('upload-cta');
+const btnExport  = document.getElementById('btn-export');
+
+function onImageLoaded(img) {
+  sourceImg = img;
+  grainSeed = Math.random() * 999;
+  uploadImageTex(img);
+
+  uploadZone.style.display = 'none';
+  canvasWrap.classList.add('visible');
+  btnExport.style.display = '';
+
+  const rect = canvasWrap.getBoundingClientRect();
+  const w = Math.floor(rect.width), h = Math.floor(rect.height);
+  glCanvas.width  = w;  glCanvas.height  = h;
+  ol.width        = w;  ol.height        = h;
+  computeImgUV(w, h);
+  scheduleRender();
+}
+
+function loadFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload  = () => { onImageLoaded(img); URL.revokeObjectURL(url); };
+  img.onerror = () => URL.revokeObjectURL(url);
+  img.src = url;
+}
+
+uploadCta.addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
+uploadZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('dragging'); });
+uploadZone.addEventListener('dragleave', e => { if (!uploadZone.contains(e.relatedTarget)) uploadZone.classList.remove('dragging'); });
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragging');
+  loadFile(e.dataTransfer.files[0]);
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SLIDERS  (wired to GPU uniforms, trigger pipeline re-render)
+═══════════════════════════════════════════════════════════════ */
+
+document.querySelectorAll('.filter-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.filter-item').forEach(f => f.classList.remove('active'));
+    item.classList.add('active');
+    const name = item.querySelector('.fi-name').textContent;
+    document.getElementById('footer-stock').textContent = name;
   });
+});
 
-  canvas.addEventListener('mousemove', e => {
-    const { x, y } = canvasCoords(e);
-    if (dragging) {
-      sliderPos = Math.max(0.01, Math.min(0.99, x / canvas.width));
-      draw();
-    } else {
-      canvas.style.cursor = (hitHandle(x, y) || hitLine(x)) ? 'col-resize' : 'default';
-    }
+function wireSlider(id, onChange) {
+  const s = document.getElementById('s-' + id);
+  const v = document.getElementById('v-' + id);
+  if (!s) return;
+  function sync() {
+    const min = +s.min, max = +s.max, val = +s.value;
+    s.style.setProperty('--pct', (((val - min) / (max - min)) * 100).toFixed(1) + '%');
+    if (v) v.textContent = val;
+    onChange(val);
+    scheduleRender();
+  }
+  s.addEventListener('input', sync);
+  sync(); /* initialise display without triggering render (no image yet) */
+}
+
+wireSlider('grain',      v => { uGrainVal   = v / 100; });
+wireSlider('vignette',   v => { uVigVal     = v / 100; });
+wireSlider('fade',       v => { uFadeVal    = v / 100; });
+wireSlider('colortemp',  v => { uColorTempV = v / 100; });
+wireSlider('saturation', v => { uSatVal     = 1 + v / 100; });
+wireSlider('halation',   v => { uHalVal     = v / 100; });
+
+document.querySelectorAll('.adj-reset').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const s = document.getElementById(btn.dataset.target);
+    if (!s) return;
+    s.value = 0;
+    s.dispatchEvent(new Event('input'));
   });
+});
 
-  canvas.addEventListener('mouseup',    () => { dragging = false; });
-  canvas.addEventListener('mouseleave', () => { dragging = false; });
+/* ═══════════════════════════════════════════════════════════════
+   A/B SLIDER INTERACTION  (mouse + touch on the WebGL canvas)
+═══════════════════════════════════════════════════════════════ */
 
-  /* Touch */
-  canvas.addEventListener('touchstart', e => {
-    e.preventDefault();
-    const t = e.touches[0];
-    const { x, y } = canvasCoords(t);
-    if (hitHandle(x, y) || hitLine(x)) dragging = true;
-  }, { passive: false });
+function canvasXY(e) {
+  const r  = glCanvas.getBoundingClientRect();
+  const sx = glCanvas.width  / r.width;
+  const sy = glCanvas.height / r.height;
+  return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+}
 
-  canvas.addEventListener('touchmove', e => {
-    e.preventDefault();
-    if (!dragging) return;
-    const t = e.touches[0];
-    const { x } = canvasCoords(t);
-    sliderPos = Math.max(0.01, Math.min(0.99, x / canvas.width));
-    draw();
-  }, { passive: false });
+function nearHandle(x, y) {
+  return Math.hypot(x - sliderPos * glCanvas.width, y - glCanvas.height / 2) <= 28;
+}
+function nearLine(x) {
+  return Math.abs(x - sliderPos * glCanvas.width) <= 8;
+}
 
-  canvas.addEventListener('touchend', () => { dragging = false; });
+glCanvas.addEventListener('mousedown', e => {
+  const {x, y} = canvasXY(e);
+  if (nearHandle(x, y) || nearLine(x)) dragging = true;
+});
+glCanvas.addEventListener('mousemove', e => {
+  const {x, y} = canvasXY(e);
+  if (dragging) {
+    sliderPos = Math.max(0.01, Math.min(0.99, x / glCanvas.width));
+    scheduleRender();
+  } else {
+    glCanvas.style.cursor = (nearHandle(x, y) || nearLine(x)) ? 'col-resize' : 'default';
+  }
+});
+glCanvas.addEventListener('mouseup',    () => { dragging = false; });
+glCanvas.addEventListener('mouseleave', () => { dragging = false; });
 
-  /* ─── Resize ──────────────────────────────────── */
-  const ro = new ResizeObserver(() => {
-    if (img) { fitCanvas(); draw(); }
-  });
-  ro.observe(canvasWrap);
+glCanvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const {x, y} = canvasXY(e.touches[0]);
+  if (nearHandle(x, y) || nearLine(x)) dragging = true;
+}, { passive: false });
+
+glCanvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!dragging) return;
+  sliderPos = Math.max(0.01, Math.min(0.99, canvasXY(e.touches[0]).x / glCanvas.width));
+  scheduleRender();
+}, { passive: false });
+
+glCanvas.addEventListener('touchend', () => { dragging = false; });
+
+/* ═══════════════════════════════════════════════════════════════
+   RESIZE OBSERVER
+═══════════════════════════════════════════════════════════════ */
+
+new ResizeObserver(() => {
+  if (!sourceImg) return;
+  const rect = canvasWrap.getBoundingClientRect();
+  const w = Math.floor(rect.width), h = Math.floor(rect.height);
+  if (w === glCanvas.width && h === glCanvas.height) return;
+  glCanvas.width  = w;  glCanvas.height  = h;
+  ol.width        = w;  ol.height        = h;
+  computeImgUV(w, h);
+  scheduleRender();
+}).observe(canvasWrap);
+
+/* ═══════════════════════════════════════════════════════════════
+   EXPORT — full native-resolution JPEG
+═══════════════════════════════════════════════════════════════ */
+
+btnExport.addEventListener('click', () => {
+  if (!sourceImg) return;
+
+  const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  let ew = sourceImg.naturalWidth, eh = sourceImg.naturalHeight;
+
+  /* Clamp to GPU max texture size while preserving aspect ratio */
+  if (ew > maxTex || eh > maxTex) {
+    const scale = maxTex / Math.max(ew, eh);
+    ew = Math.floor(ew * scale);
+    eh = Math.floor(eh * scale);
+  }
+
+  /* Save display state */
+  const dw = glCanvas.width, dh = glCanvas.height;
+  const savedUV = { ...imgUV };
+
+  /* Resize canvas to export dimensions */
+  glCanvas.width  = ew;
+  glCanvas.height = eh;
+
+  /* At native image size, image fills the canvas exactly — no letterbox */
+  imgUV = { ox: 0, oy: 0, sx: 1, sy: 1 };
+  ensureFBOs(ew, eh);
+
+  /* Render with sliderPos = -1 → composite shows full processed image */
+  renderPipeline(-1.0);
+  gl.finish();
+
+  const dataURL = glCanvas.toDataURL('image/jpeg', 0.95);
+
+  /* Restore display dimensions */
+  glCanvas.width  = dw;
+  glCanvas.height = dh;
+  ol.width        = dw;
+  ol.height       = dh;
+  imgUV = savedUV;
+  ensureFBOs(dw, dh);
+  renderPipeline(sliderPos);
+  drawOverlay();
+
+  /* Trigger browser download */
+  const a    = document.createElement('a');
+  a.href     = dataURL;
+  a.download = 'relens-export.jpg';
+  a.click();
+});
 </script>
 </body>
 </html>
