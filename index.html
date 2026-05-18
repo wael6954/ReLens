@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReLens — Film Emulation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg:          #0c0a08;
+      --panel-bg:    #100e0b;
+      --panel-bg2:   #0e0c09;
+      --border:      #221a10;
+      --border-soft: #1c1510;
+      --amber:       #c07828;
+      --amber-light: #e09840;
+      --amber-dim:   rgba(192, 120, 40, 0.12);
+      --amber-glow:  rgba(192, 120, 40, 0.35);
+      --text:        #bfaa8a;
+      --text-dim:    #5a4a34;
+      --text-bright: #ddd0b8;
+      --hover-bg:    #181410;
+      --active-bg:   rgba(192, 120, 40, 0.10);
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Grain texture overlay */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.042;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23g)'/%3E%3C/svg%3E");
+    }
+
+    /* ── TOP BAR ─────────────────────────────────── */
+    .topbar {
+      height: 50px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #0f0d0a 0%, var(--bg) 100%);
+    }
+
+    .logo {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .logo-mark {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 25px;
+      letter-spacing: 0.14em;
+      color: var(--text-bright);
+      line-height: 1;
+    }
+
+    .logo-mark em {
+      font-style: italic;
+      color: var(--amber);
+    }
+
+    .logo-sub {
+      font-size: 8px;
+      letter-spacing: 0.38em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .topbar-right {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 7px 15px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      border: none;
+      transition: all 0.18s;
+      text-transform: uppercase;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: #3a2c1a;
+    }
+
+    .btn-primary {
+      background: var(--amber);
+      color: #0c0a08;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+    }
+
+    .btn-primary:hover {
+      background: var(--amber-light);
+    }
+
+    /* ── LAYOUT ──────────────────────────────────── */
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── LEFT PANEL ──────────────────────────────── */
+    .left-panel {
+      width: 210px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background: var(--panel-bg);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 13px 15px 10px;
+      border-bottom: 1px solid var(--border-soft);
+      flex-shrink: 0;
+    }
+
+    .panel-label {
+      font-size: 8px;
+      letter-spacing: 0.42em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .filter-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 0 16px;
+    }
+
+    .filter-scroll::-webkit-scrollbar { width: 2px; }
+    .filter-scroll::-webkit-scrollbar-track { background: transparent; }
+    .filter-scroll::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .filter-group {
+      margin-top: 6px;
+    }
+
+    .group-label {
+      font-size: 7.5px;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: var(--amber);
+      opacity: 0.6;
+      padding: 10px 15px 5px;
+    }
+
+    .filter-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 15px;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: all 0.13s;
+      gap: 6px;
+    }
+
+    .filter-item:hover {
+      background: var(--hover-bg);
+      color: var(--text-bright);
+    }
+
+    .filter-item.active {
+      background: var(--active-bg);
+      border-left-color: var(--amber);
+      color: var(--amber-light);
+    }
+
+    .fi-name {
+      font-size: 11.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .fi-iso {
+      font-size: 8.5px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+      letter-spacing: 0.05em;
+    }
+
+    .filter-item.active .fi-iso {
+      color: rgba(192, 120, 40, 0.6);
+    }
+
+    /* ── CENTER PANEL ────────────────────────────── */
+    .center-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+      position: relative;
+    }
+
+    /* Upload zone */
+    .upload-zone {
+      flex: 1;
+      margin: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      border: 1px dashed #2a2010;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Corner accents on upload zone */
+    .upload-zone::before,
+    .upload-zone::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-color: var(--border);
+      border-style: solid;
+      pointer-events: none;
+    }
+    .upload-zone::before {
+      top: 12px; left: 12px;
+      border-width: 1px 0 0 1px;
+    }
+    .upload-zone::after {
+      bottom: 12px; right: 12px;
+      border-width: 0 1px 1px 0;
+    }
+
+    .upload-zone:hover {
+      border-color: #3a2c1a;
+    }
+
+    .upload-zone.dragging {
+      border-color: var(--amber);
+      background: var(--amber-dim);
+    }
+
+    .upload-icon {
+      width: 56px;
+      height: 56px;
+      color: var(--text-dim);
+      opacity: 0.5;
+    }
+
+    .upload-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: 0.06em;
+      color: var(--text-bright);
+      text-align: center;
+    }
+
+    .upload-sub {
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      text-align: center;
+      margin-top: -8px;
+    }
+
+    .upload-cta {
+      margin-top: 6px;
+      padding: 8px 22px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: 'Space Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+
+    .upload-cta:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    .formats-note {
+      font-size: 8px;
+      letter-spacing: 0.15em;
+      color: #3a2c1a;
+      text-transform: uppercase;
+    }
+
+    #file-input { display: none; }
+
+    /* Canvas */
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: none;
+    }
+
+    .canvas-wrap.visible {
+      display: block;
+    }
+
+    #ab-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── RIGHT PANEL ─────────────────────────────── */
+    .right-panel {
+      width: 236px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border);
+      background: var(--panel-bg2);
+      overflow: hidden;
+    }
+
+    .adj-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0 24px;
+    }
+
+    .adj-scroll::-webkit-scrollbar { width: 2px; }
+    .adj-scroll::-webkit-scrollbar-track { background: transparent; }
+    .adj-scroll::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .adj-group {
+      padding: 13px 17px 14px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .adj-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 11px;
+    }
+
+    .adj-name {
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .adj-val {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--amber);
+      min-width: 28px;
+      text-align: right;
+    }
+
+    /* Custom range slider */
+    .adj-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 2px;
+      border-radius: 1px;
+      outline: none;
+      cursor: pointer;
+      /* track fill updated via JS custom property */
+      background: linear-gradient(
+        to right,
+        var(--amber) 0%,
+        var(--amber) var(--pct, 50%),
+        #1e1810 var(--pct, 50%),
+        #1e1810 100%
+      );
+    }
+
+    .adj-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--amber);
+      border: 2px solid var(--bg);
+      cursor: pointer;
+      box-shadow: 0 0 0 0 var(--amber-glow);
+      transition: box-shadow 0.18s;
+    }
+
+    .adj-slider::-webkit-slider-thumb:hover,
+    .adj-slider:active::-webkit-slider-thumb {
+      box-shadow: 0 0 0 4px var(--amber-glow);
+    }
+
+    .adj-slider::-moz-range-thumb {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--amber);
+      border: 2px solid var(--bg);
+      cursor: pointer;
+    }
+
+    .adj-slider::-moz-range-track {
+      height: 2px;
+      border-radius: 1px;
+      background: #1e1810;
+    }
+
+    /* Reset button per adjustment */
+    .adj-reset {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-dim);
+      font-family: 'Space Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.1em;
+      padding: 0;
+      margin-top: 6px;
+      display: block;
+      opacity: 0;
+      transition: opacity 0.15s, color 0.15s;
+    }
+
+    .adj-group:hover .adj-reset {
+      opacity: 1;
+    }
+
+    .adj-reset:hover {
+      color: var(--amber);
+    }
+
+    /* Footer note in right panel */
+    .panel-footer {
+      padding: 14px 17px;
+      border-top: 1px solid var(--border-soft);
+      flex-shrink: 0;
+    }
+
+    .panel-footer p {
+      font-size: 8px;
+      letter-spacing: 0.15em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      line-height: 1.8;
+    }
+
+    .panel-footer span {
+      color: var(--amber);
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="logo">
+    <div class="logo-mark">Re<em>Lens</em></div>
+    <div class="logo-sub">Film Emulation Studio</div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-ghost">My Photos</button>
+    <button class="btn btn-primary">&#43; New Photo</button>
+  </div>
+</header>
+
+<!-- APP BODY -->
+<div class="app-body">
+
+  <!-- LEFT PANEL: Film Stocks -->
+  <aside class="left-panel">
+    <div class="panel-header">
+      <div class="panel-label">Film Stocks</div>
+    </div>
+    <div class="filter-scroll">
+
+      <div class="filter-group">
+        <div class="group-label">Color Negative</div>
+        <div class="filter-item active" data-filter="portra400">
+          <span class="fi-name">Portra 400</span>
+          <span class="fi-iso">400</span>
+        </div>
+        <div class="filter-item" data-filter="portra160">
+          <span class="fi-name">Portra 160</span>
+          <span class="fi-iso">160</span>
+        </div>
+        <div class="filter-item" data-filter="ektar100">
+          <span class="fi-name">Ektar 100</span>
+          <span class="fi-iso">100</span>
+        </div>
+        <div class="filter-item" data-filter="superia400">
+          <span class="fi-name">Superia 400</span>
+          <span class="fi-iso">400</span>
+        </div>
+        <div class="filter-item" data-filter="gold200">
+          <span class="fi-name">Gold 200</span>
+          <span class="fi-iso">200</span>
+        </div>
+        <div class="filter-item" data-filter="ultramax400">
+          <span class="fi-name">UltraMax 400</span>
+          <span class="fi-iso">400</span>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="group-label">Color Reversal</div>
+        <div class="filter-item" data-filter="velvia50">
+          <span class="fi-name">Velvia 50</span>
+          <span class="fi-iso">50</span>
+        </div>
+        <div class="filter-item" data-filter="provia100">
+          <span class="fi-name">Provia 100F</span>
+          <span class="fi-iso">100</span>
+        </div>
+        <div class="filter-item" data-filter="cinestill800">
+          <span class="fi-name">CineStill 800T</span>
+          <span class="fi-iso">800</span>
+        </div>
+        <div class="filter-item" data-filter="cinestill50">
+          <span class="fi-name">CineStill 50D</span>
+          <span class="fi-iso">50</span>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="group-label">Black &amp; White</div>
+        <div class="filter-item" data-filter="hp5">
+          <span class="fi-name">HP5 Plus</span>
+          <span class="fi-iso">400</span>
+        </div>
+        <div class="filter-item" data-filter="trix">
+          <span class="fi-name">Tri-X 400</span>
+          <span class="fi-iso">400</span>
+        </div>
+        <div class="filter-item" data-filter="delta3200">
+          <span class="fi-name">Delta 3200</span>
+          <span class="fi-iso">3200</span>
+        </div>
+        <div class="filter-item" data-filter="panf">
+          <span class="fi-name">Pan F Plus</span>
+          <span class="fi-iso">50</span>
+        </div>
+        <div class="filter-item" data-filter="tmax400">
+          <span class="fi-name">T-Max 400</span>
+          <span class="fi-iso">400</span>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <div class="group-label">Specialty</div>
+        <div class="filter-item" data-filter="lomopurple">
+          <span class="fi-name">Lomochrome Purple</span>
+          <span class="fi-iso">100</span>
+        </div>
+        <div class="filter-item" data-filter="redscale">
+          <span class="fi-name">Redscale</span>
+          <span class="fi-iso">—</span>
+        </div>
+        <div class="filter-item" data-filter="crossprocess">
+          <span class="fi-name">Cross Process</span>
+          <span class="fi-iso">—</span>
+        </div>
+        <div class="filter-item" data-filter="infrared">
+          <span class="fi-name">Infrared</span>
+          <span class="fi-iso">—</span>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- CENTER PANEL -->
+  <main class="center-panel">
+
+    <!-- Upload zone -->
+    <div class="upload-zone" id="upload-zone">
+      <!-- Camera SVG icon -->
+      <svg class="upload-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="16" width="58" height="38" rx="3" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M21 16V13C21 11.9 21.9 11 23 11H41C42.1 11 43 11.9 43 13V16" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="32" cy="35" r="11" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="32" cy="35" r="6" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="50" cy="25" r="2.5" fill="currentColor"/>
+        <!-- Sprocket holes -->
+        <rect x="7" y="19" width="3" height="4" rx="0.5" fill="currentColor" opacity="0.4"/>
+        <rect x="7" y="27" width="3" height="4" rx="0.5" fill="currentColor" opacity="0.4"/>
+        <rect x="54" y="19" width="3" height="4" rx="0.5" fill="currentColor" opacity="0.4"/>
+        <rect x="54" y="27" width="3" height="4" rx="0.5" fill="currentColor" opacity="0.4"/>
+      </svg>
+
+      <div class="upload-heading">Drop a frame here</div>
+      <div class="upload-sub">or browse your negatives</div>
+      <button class="upload-cta" id="upload-cta">Open Film</button>
+      <div class="formats-note">JPG &nbsp;·&nbsp; PNG &nbsp;·&nbsp; WEBP &nbsp;·&nbsp; TIFF</div>
+
+      <input type="file" id="file-input" accept="image/*">
+    </div>
+
+    <!-- Canvas (hidden until image loaded) -->
+    <div class="canvas-wrap" id="canvas-wrap">
+      <canvas id="ab-canvas"></canvas>
+    </div>
+
+  </main>
+
+  <!-- RIGHT PANEL: Adjustments -->
+  <aside class="right-panel">
+    <div class="panel-header">
+      <div class="panel-label">Adjustments</div>
+    </div>
+    <div class="adj-scroll">
+
+      <div class="adj-group">
+        <div class="adj-row">
+          <span class="adj-name">Grain</span>
+          <span class="adj-val" id="v-grain">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-grain" min="0" max="100" value="0">
+        <button class="adj-reset" data-target="s-grain">reset</button>
+      </div>
+
+      <div class="adj-group">
+        <div class="adj-row">
+          <span class="adj-name">Vignette</span>
+          <span class="adj-val" id="v-vignette">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-vignette" min="0" max="100" value="0">
+        <button class="adj-reset" data-target="s-vignette">reset</button>
+      </div>
+
+      <div class="adj-group">
+        <div class="adj-row">
+          <span class="adj-name">Fade</span>
+          <span class="adj-val" id="v-fade">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-fade" min="0" max="100" value="0">
+        <button class="adj-reset" data-target="s-fade">reset</button>
+      </div>
+
+      <div class="adj-group">
+        <div class="adj-row">
+          <span class="adj-name">Color Temp</span>
+          <span class="adj-val" id="v-colortemp">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-colortemp" min="-100" max="100" value="0">
+        <button class="adj-reset" data-target="s-colortemp">reset</button>
+      </div>
+
+      <div class="adj-group">
+        <div class="adj-row">
+          <span class="adj-name">Saturation</span>
+          <span class="adj-val" id="v-saturation">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-saturation" min="-100" max="100" value="0">
+        <button class="adj-reset" data-target="s-saturation">reset</button>
+      </div>
+
+      <div class="adj-group">
+        <div class="adj-row">
+          <span class="adj-name">Halation</span>
+          <span class="adj-val" id="v-halation">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-halation" min="0" max="100" value="0">
+        <button class="adj-reset" data-target="s-halation">reset</button>
+      </div>
+
+    </div>
+    <div class="panel-footer">
+      <p>Stock &nbsp;<span>Portra 400</span></p>
+      <p>Mode &nbsp;<span>Color Neg.</span></p>
+    </div>
+  </aside>
+
+</div><!-- /app-body -->
+
+<script>
+  /* ─── Filter list ─────────────────────────────── */
+  const filterItems = document.querySelectorAll('.filter-item');
+  filterItems.forEach(item => {
+    item.addEventListener('click', () => {
+      filterItems.forEach(f => f.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+
+  /* ─── Sliders ─────────────────────────────────── */
+  const sliderMap = {
+    'grain':      { el: null, valEl: null, default: 0 },
+    'vignette':   { el: null, valEl: null, default: 0 },
+    'fade':       { el: null, valEl: null, default: 0 },
+    'colortemp':  { el: null, valEl: null, default: 0 },
+    'saturation': { el: null, valEl: null, default: 0 },
+    'halation':   { el: null, valEl: null, default: 0 },
+  };
+
+  Object.keys(sliderMap).forEach(key => {
+    const s = document.getElementById('s-' + key);
+    const v = document.getElementById('v-' + key);
+    sliderMap[key].el = s;
+    sliderMap[key].valEl = v;
+    if (!s) return;
+
+    function syncSlider() {
+      const min = parseFloat(s.min);
+      const max = parseFloat(s.max);
+      const val = parseFloat(s.value);
+      const pct = ((val - min) / (max - min)) * 100;
+      s.style.setProperty('--pct', pct.toFixed(1) + '%');
+      v.textContent = val;
+    }
+
+    s.addEventListener('input', syncSlider);
+    syncSlider();
+  });
+
+  /* Reset buttons */
+  document.querySelectorAll('.adj-reset').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const targetId = btn.dataset.target;
+      const s = document.getElementById(targetId);
+      if (!s) return;
+      s.value = s.dataset.default ?? 0;
+      s.dispatchEvent(new Event('input'));
+    });
+  });
+
+  /* ─── Upload ──────────────────────────────────── */
+  const uploadZone  = document.getElementById('upload-zone');
+  const canvasWrap  = document.getElementById('canvas-wrap');
+  const fileInput   = document.getElementById('file-input');
+  const uploadCta   = document.getElementById('upload-cta');
+  const canvas      = document.getElementById('ab-canvas');
+  const ctx         = canvas.getContext('2d');
+
+  uploadCta.addEventListener('click', e => {
+    e.stopPropagation();
+    fileInput.click();
+  });
+
+  uploadZone.addEventListener('click', () => fileInput.click());
+
+  uploadZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    uploadZone.classList.add('dragging');
+  });
+  uploadZone.addEventListener('dragleave', e => {
+    if (!uploadZone.contains(e.relatedTarget))
+      uploadZone.classList.remove('dragging');
+  });
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragging');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) loadImage(file);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) loadImage(fileInput.files[0]);
+  });
+
+  /* ─── Image & A/B state ───────────────────────── */
+  let img         = null;
+  let sliderPos   = 0.5;    // 0–1
+  let dragging    = false;
+  let imgBounds   = { x: 0, y: 0, w: 0, h: 0 };
+
+  function loadImage(file) {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      img = image;
+      URL.revokeObjectURL(url);
+      uploadZone.style.display = 'none';
+      canvasWrap.classList.add('visible');
+      fitCanvas();
+      draw();
+    };
+    image.onerror = () => URL.revokeObjectURL(url);
+    image.src = url;
+  }
+
+  function fitCanvas() {
+    const rect = canvasWrap.getBoundingClientRect();
+    canvas.width  = Math.floor(rect.width);
+    canvas.height = Math.floor(rect.height);
+    calcImgBounds();
+  }
+
+  function calcImgBounds() {
+    if (!img) return;
+    const cw = canvas.width, ch = canvas.height;
+    const imgRatio = img.naturalWidth / img.naturalHeight;
+    const boxRatio = cw / ch;
+    let w, h, x, y;
+    if (imgRatio > boxRatio) {
+      w = cw; h = cw / imgRatio; x = 0; y = (ch - h) / 2;
+    } else {
+      h = ch; w = ch * imgRatio; y = 0; x = (cw - w) / 2;
+    }
+    imgBounds = { x, y, w, h };
+  }
+
+  /* ─── Draw ────────────────────────────────────── */
+  function draw() {
+    if (!img) return;
+    const cw = canvas.width, ch = canvas.height;
+    const sx = Math.round(sliderPos * cw);
+    const { x, y, w, h } = imgBounds;
+
+    ctx.clearRect(0, 0, cw, ch);
+
+    // Dark letterbox background
+    ctx.fillStyle = '#0c0a08';
+    ctx.fillRect(0, 0, cw, ch);
+
+    // ── AFTER side (right): full image ──
+    ctx.drawImage(img, x, y, w, h);
+
+    // ── BEFORE side (left): clipped ──
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, sx, ch);
+    ctx.clip();
+    ctx.drawImage(img, x, y, w, h);
+    ctx.restore();
+
+    // ── Divider line ──
+    ctx.save();
+    ctx.shadowColor = 'rgba(192, 120, 40, 0.6)';
+    ctx.shadowBlur  = 10;
+    ctx.strokeStyle = 'rgba(192, 120, 40, 0.85)';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(sx, 0);
+    ctx.lineTo(sx, ch);
+    ctx.stroke();
+    ctx.restore();
+
+    // ── Handle ──
+    const hy = ch / 2;
+    const hr = 20;
+
+    // Handle shadow
+    ctx.save();
+    ctx.shadowColor = 'rgba(192, 120, 40, 0.5)';
+    ctx.shadowBlur  = 16;
+
+    // Handle circle fill
+    ctx.fillStyle = '#131109';
+    ctx.beginPath();
+    ctx.arc(sx, hy, hr, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Handle circle stroke
+    ctx.strokeStyle = 'rgba(192, 120, 40, 0.85)';
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // Chevron arrows inside handle
+    ctx.fillStyle = 'rgba(192, 120, 40, 0.9)';
+    drawChevron(ctx, sx - 5, hy, 'left');
+    drawChevron(ctx, sx + 5, hy, 'right');
+
+    // ── Labels ──
+    ctx.font = '700 9px Space Mono';
+    ctx.textBaseline = 'top';
+
+    const LX = x + 12;
+    const RX = x + w - 12;
+    const LY = y + 12;
+
+    if (sx > LX + 60) {
+      drawLabel(ctx, 'BEFORE', LX, LY, 'left');
+    }
+    if (sx < RX - 50) {
+      drawLabel(ctx, 'AFTER', RX, LY, 'right');
+    }
+  }
+
+  function drawChevron(ctx, cx, cy, dir) {
+    const s = 5, t = 3;
+    ctx.beginPath();
+    if (dir === 'left') {
+      ctx.moveTo(cx + t, cy - s);
+      ctx.lineTo(cx - t, cy);
+      ctx.lineTo(cx + t, cy + s);
+    } else {
+      ctx.moveTo(cx - t, cy - s);
+      ctx.lineTo(cx + t, cy);
+      ctx.lineTo(cx - t, cy + s);
+    }
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(192, 120, 40, 0.9)';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
+
+  function drawLabel(ctx, text, x, y, align) {
+    ctx.textAlign = align;
+    // Background pill
+    const w = ctx.measureText(text).width;
+    const pad = 6, h = 16;
+    const bx = align === 'left' ? x - pad : x - w - pad;
+    ctx.fillStyle = 'rgba(12, 10, 8, 0.65)';
+    ctx.beginPath();
+    ctx.roundRect(bx, y - 2, w + pad * 2, h, 2);
+    ctx.fill();
+    // Text
+    ctx.fillStyle = 'rgba(192, 120, 40, 0.8)';
+    ctx.fillText(text, x, y + 1);
+  }
+
+  /* ─── A/B interaction ─────────────────────────── */
+  function canvasCoords(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width  / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top)  * scaleY,
+    };
+  }
+
+  function hitHandle(x, y) {
+    const sx = sliderPos * canvas.width;
+    const hy = canvas.height / 2;
+    return Math.hypot(x - sx, y - hy) <= 28;
+  }
+
+  function hitLine(x) {
+    return Math.abs(x - sliderPos * canvas.width) <= 8;
+  }
+
+  canvas.addEventListener('mousedown', e => {
+    const { x, y } = canvasCoords(e);
+    if (hitHandle(x, y) || hitLine(x)) {
+      dragging = true;
+      canvas.style.cursor = 'col-resize';
+    }
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    const { x, y } = canvasCoords(e);
+    if (dragging) {
+      sliderPos = Math.max(0.01, Math.min(0.99, x / canvas.width));
+      draw();
+    } else {
+      canvas.style.cursor = (hitHandle(x, y) || hitLine(x)) ? 'col-resize' : 'default';
+    }
+  });
+
+  canvas.addEventListener('mouseup',    () => { dragging = false; });
+  canvas.addEventListener('mouseleave', () => { dragging = false; });
+
+  /* Touch */
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const { x, y } = canvasCoords(t);
+    if (hitHandle(x, y) || hitLine(x)) dragging = true;
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!dragging) return;
+    const t = e.touches[0];
+    const { x } = canvasCoords(t);
+    sliderPos = Math.max(0.01, Math.min(0.99, x / canvas.width));
+    draw();
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', () => { dragging = false; });
+
+  /* ─── Resize ──────────────────────────────────── */
+  const ro = new ResizeObserver(() => {
+    if (img) { fitCanvas(); draw(); }
+  });
+  ro.observe(canvasWrap);
+</script>
+</body>
+</html>
