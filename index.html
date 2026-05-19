@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>ReLens</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -608,11 +608,44 @@
         transform: translateX(-50%);
         width: 36px; height: 3px; background: var(--border); border-radius: 2px;
       }
-      #btn-adjust-mobile { display: flex; }
+      #btn-adjust-mobile { display: flex; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
       .topbar-right .btn-home,
       .topbar-right .hints-toggle { display: none !important; }
       .btn-save-photos { margin-bottom: 30px; }
       .panel-footer .editor-only.btn-save-photos { margin-bottom: 30px; }
+
+      /* Topbar compression */
+      .topbar { padding: 0 10px; }
+      .logo-sub { display: none; }
+      .logo-mark { font-size: 18px; }
+      .topbar-right { gap: 5px; }
+      .topbar-right .btn { padding: 5px 9px; font-size: 8.5px; }
+      /* Export dropdown hidden on mobile — save then download from gallery */
+      .export-wrap { display: none !important; }
+
+      /* Welcome page */
+      .welcome-name { font-size: 52px; }
+      .welcome-actions { gap: 8px; }
+      .welcome-actions .btn { min-width: 120px; padding: 9px 14px; }
+
+      /* Upload zone */
+      .upload-zone { margin: 10px; }
+      .upload-heading { font-size: 18px; }
+
+      /* iOS home-indicator safe areas */
+      .right-panel { padding-bottom: env(safe-area-inset-bottom, 0px); }
+      .gallery-batch-bar { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+
+      /* Gallery: no hover on mobile — show action buttons always */
+      .gallery-card-overlay {
+        opacity: 0.88 !important; pointer-events: none;
+        background: linear-gradient(to top, rgba(10,8,6,0.82) 0%, rgba(10,8,6,0) 100%);
+        align-items: flex-end; padding-bottom: 10px;
+      }
+      .gallery-card-overlay .gallery-card-btn { pointer-events: auto; }
+      body.select-mode .gallery-card .gallery-card-overlay {
+        opacity: 0 !important; pointer-events: none !important;
+      }
     }
   </style>
 </head>
@@ -1380,8 +1413,9 @@ let imgUV = { ox: 0, oy: 0, sx: 1, sy: 1 };
 let zoomLevel = 1.0;
 let panX      = 0.5;
 let panY      = 0.5;
-let panning   = false;
-let panStart  = null;
+let panning       = false;
+let panStart      = null;
+let lastPinchDist = null;
 
 /* Preset-level state — things controlled by the active film stock, not individual sliders */
 let presetRgbShift    = [0, 0, 0];   /* [r, g, b] normalised 0..1 additive shift  */
@@ -2529,18 +2563,66 @@ glCanvas.addEventListener('mouseleave', () => { dragging = false; panning = fals
 
 glCanvas.addEventListener('touchstart', e => {
   e.preventDefault();
-  const {x, y} = canvasXY(e.touches[0]);
-  if (nearHandle(x, y) || nearLine(x)) dragging = true;
+  if (e.touches.length === 1) {
+    const {x, y} = canvasXY(e.touches[0]);
+    if (nearHandle(x, y) || nearLine(x)) {
+      dragging = true;
+    } else if (zoomLevel > 1.001) {
+      panning  = true;
+      panStart = { cx: e.touches[0].clientX, cy: e.touches[0].clientY, px: panX, py: panY };
+    }
+  } else if (e.touches.length === 2) {
+    dragging = false; panning = false; panStart = null;
+    lastPinchDist = Math.hypot(
+      e.touches[1].clientX - e.touches[0].clientX,
+      e.touches[1].clientY - e.touches[0].clientY
+    );
+  }
 }, { passive: false });
 
 glCanvas.addEventListener('touchmove', e => {
   e.preventDefault();
-  if (!dragging) return;
-  sliderPos = Math.max(0.01, Math.min(0.99, canvasXY(e.touches[0]).x / glCanvas.width));
-  scheduleRender();
+  if (e.touches.length === 1) {
+    if (dragging) {
+      sliderPos = Math.max(0.01, Math.min(0.99, canvasXY(e.touches[0]).x / glCanvas.width));
+      scheduleRender();
+    } else if (panning && panStart) {
+      const r  = glCanvas.getBoundingClientRect();
+      const dx = (e.touches[0].clientX - panStart.cx) / r.width;
+      const dy = (e.touches[0].clientY - panStart.cy) / r.height;
+      const hw = 0.5 / zoomLevel;
+      panX = Math.max(hw, Math.min(1 - hw, panStart.px - dx / zoomLevel));
+      panY = Math.max(hw, Math.min(1 - hw, panStart.py + dy / zoomLevel));
+      scheduleRender();
+    }
+  } else if (e.touches.length === 2 && lastPinchDist !== null && sourceImg) {
+    const dist    = Math.hypot(
+      e.touches[1].clientX - e.touches[0].clientX,
+      e.touches[1].clientY - e.touches[0].clientY
+    );
+    const factor  = dist / lastPinchDist;
+    const newZoom = Math.max(1.0, Math.min(8.0, zoomLevel * factor));
+    if (Math.abs(newZoom - zoomLevel) > 0.001) {
+      const r   = glCanvas.getBoundingClientRect();
+      const cx  = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left) / r.width;
+      const cy  = 1 - ((e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top) / r.height;
+      const _uv = effectiveUV();
+      const imgX = (_uv.sx > 0) ? (cx - _uv.ox) / _uv.sx : 0.5;
+      const imgY = (_uv.sy > 0) ? (cy - _uv.oy) / _uv.sy : 0.5;
+      const newSx = imgUV.sx / newZoom, newSy = imgUV.sy / newZoom;
+      const hw    = 0.5 / newZoom;
+      panX = Math.max(hw, Math.min(1 - hw, (cx - imgX * newSx - imgUV.ox) / imgUV.sx + hw));
+      panY = Math.max(hw, Math.min(1 - hw, (cy - imgY * newSy - imgUV.oy) / imgUV.sy + hw));
+      zoomLevel = newZoom;
+      updateZoomUI();
+      scheduleRender();
+    }
+    lastPinchDist = dist;
+  }
 }, { passive: false });
 
-glCanvas.addEventListener('touchend', () => { dragging = false; });
+glCanvas.addEventListener('touchend',    () => { dragging = false; panning = false; panStart = null; lastPinchDist = null; });
+glCanvas.addEventListener('touchcancel', () => { dragging = false; panning = false; panStart = null; lastPinchDist = null; });
 
 /* ═══════════════════════════════════════════════════════════════
    RESIZE OBSERVER
