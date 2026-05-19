@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReLens — Film Emulation</title>
+  <title>ReLens</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -222,9 +223,414 @@
     .panel-footer { padding: 14px 17px; border-top: 1px solid var(--border-soft); flex-shrink: 0; }
     .panel-footer p { font-size: 8px; letter-spacing: 0.15em; color: var(--text-dim); text-transform: uppercase; line-height: 1.8; }
     .panel-footer span { color: var(--amber); opacity: 0.7; }
+
+    /* ── HINTS TOGGLE ── */
+    .hints-toggle {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 8.5px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--text-dim); cursor: pointer; user-select: none;
+    }
+    .hints-switch {
+      width: 28px; height: 15px;
+      background: #2a2010; border-radius: 8px;
+      position: relative; flex-shrink: 0;
+      transition: background 0.2s; cursor: pointer;
+    }
+    .hints-switch::after {
+      content: ''; position: absolute;
+      top: 2px; left: 2px;
+      width: 11px; height: 11px;
+      background: #3a2c1a; border-radius: 50%;
+      transition: all 0.2s;
+    }
+    body.hints-on .hints-switch { background: rgba(192,120,40,0.22); }
+    body.hints-on .hints-switch::after { left: 15px; background: var(--amber); }
+
+    /* ── FILTER HINTS ── */
+    .filter-item { flex-wrap: wrap; }
+    .fi-hint {
+      display: none; width: 100%;
+      font-size: 9px; line-height: 1.5;
+      color: var(--text-dim); letter-spacing: 0.01em;
+      margin-top: 2px; padding-bottom: 1px;
+      text-transform: none;
+    }
+    body.hints-on .fi-hint { display: block; }
+
+    /* ── GROUP SUBTITLES ── */
+    .group-subtitle {
+      display: none;
+      padding: 0 15px 6px;
+      font-size: 8.5px; line-height: 1.5;
+      color: var(--text-dim); letter-spacing: 0.01em;
+      opacity: 0.75;
+    }
+    body.hints-on .group-subtitle { display: block; }
+
+    /* ── SLIDER INFO ICONS ── */
+    .slider-info {
+      display: none; position: relative;
+      width: 13px; height: 13px; flex-shrink: 0;
+      background: #1e1810; border: 1px solid var(--border);
+      border-radius: 50%; text-align: center; line-height: 11px;
+      font-size: 7.5px; color: var(--text-dim); cursor: help;
+    }
+    body.hints-on .slider-info { display: inline-flex; align-items: center; justify-content: center; }
+    .slider-info .tip {
+      display: none; position: absolute;
+      bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+      width: 162px; background: #1a1410;
+      border: 1px solid var(--border); border-radius: 2px;
+      padding: 6px 9px; font-size: 9px; line-height: 1.55;
+      color: var(--text); letter-spacing: 0.01em; text-transform: none;
+      z-index: 200; pointer-events: none; white-space: normal;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+    .slider-info:hover .tip { display: block; }
+
+    /* ── RESET ALL BUTTON ── */
+    .btn-reset-all {
+      background: none; border: 1px solid var(--border-soft);
+      color: var(--text-dim); font-family: 'Space Mono', monospace;
+      font-size: 7.5px; letter-spacing: 0.18em; text-transform: uppercase;
+      padding: 3px 7px; cursor: pointer; border-radius: 1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .btn-reset-all:hover { color: var(--amber); border-color: var(--amber); }
+
+    /* ── WELCOME PAGE ── */
+    #welcome {
+      position: fixed; inset: 0; z-index: 5000;
+      display: flex; align-items: center; justify-content: center;
+      background: #060504;
+      transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #welcome.exiting { opacity: 0; pointer-events: none; }
+    #welcome.hidden  { display: none; }
+
+    #welcome-grain {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      opacity: 0.065;
+      image-rendering: pixelated;
+    }
+
+    .welcome-inner {
+      position: relative; z-index: 1;
+      text-align: center;
+      display: flex; flex-direction: column; align-items: center;
+      animation: wFadeIn 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    @keyframes wFadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .welcome-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300; font-size: 88px;
+      letter-spacing: 0.10em; color: #ddd0b8; line-height: 1;
+    }
+    .welcome-name em { font-style: italic; color: var(--amber); }
+
+    .welcome-tag {
+      font-size: 8px; letter-spacing: 0.60em;
+      text-transform: uppercase; color: #2e2218;
+      margin-top: 12px;
+    }
+
+    .welcome-divider {
+      width: 1px; height: 44px;
+      background: linear-gradient(to bottom, transparent, #2e2010, transparent);
+      margin: 34px auto;
+    }
+
+    .welcome-actions { display: flex; gap: 10px; }
+    .welcome-actions .btn { min-width: 148px; padding: 10px 20px; font-size: 9px; }
+
+    /* ── HOME BUTTON (topbar) ── */
+    .btn-home {
+      background: none; border: none;
+      color: var(--text-dim); cursor: pointer;
+      padding: 6px 7px; line-height: 1;
+      transition: color 0.15s; display: flex; align-items: center;
+    }
+    .btn-home:hover { color: var(--amber); }
+    .btn-home svg { display: block; }
+
+    /* ── PAGE SWITCHING ── */
+    .logo { cursor: pointer; }
+    body.page-gallery .editor-only { display: none !important; }
+    body.page-editor  .gallery-only { display: none !important; }
+
+    /* ── GALLERY PAGE ── */
+    #gallery-page {
+      display: none; flex: 1; flex-direction: column;
+      overflow: hidden; min-height: 0;
+    }
+
+    .gallery-scroll {
+      flex: 1; overflow-y: auto; padding: 24px; min-height: 0;
+    }
+    .gallery-scroll::-webkit-scrollbar { width: 4px; }
+    .gallery-scroll::-webkit-scrollbar-track { background: transparent; }
+    .gallery-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .gallery-grid { columns: 240px auto; column-gap: 12px; }
+
+    .gallery-card {
+      break-inside: avoid; margin-bottom: 12px;
+      position: relative; background: var(--panel-bg);
+      border: 1px solid var(--border); cursor: pointer;
+      transition: border-color 0.18s;
+    }
+    .gallery-card:hover, .gallery-card.selected { border-color: var(--amber); }
+
+    .gallery-card-thumb { width: 100%; display: block; vertical-align: top; }
+
+    .gallery-card-info { padding: 8px 10px 10px; }
+    .gallery-card-filter {
+      font-size: 10.5px; color: var(--text-bright);
+      letter-spacing: 0.04em; margin-bottom: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .gallery-card-date {
+      font-size: 7.5px; color: var(--text-dim);
+      letter-spacing: 0.12em; text-transform: uppercase;
+    }
+
+    .gallery-card-overlay {
+      position: absolute; top: 0; left: 0; right: 0;
+      bottom: 42px;
+      background: rgba(10,8,6,0.76);
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      opacity: 0; transition: opacity 0.18s; pointer-events: none;
+    }
+    .gallery-card:hover .gallery-card-overlay { opacity: 1; pointer-events: auto; }
+    body.select-mode .gallery-card:hover .gallery-card-overlay { opacity: 0; pointer-events: none; }
+
+    .gallery-card-btn {
+      width: 36px; height: 36px;
+      background: rgba(12,10,8,0.92);
+      border: 1px solid var(--border); border-radius: 50%;
+      color: var(--text-dim); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: border-color 0.15s, color 0.15s;
+    }
+    .gallery-card-btn:hover { border-color: var(--amber); color: var(--amber); }
+    .gallery-card-btn.btn-card-delete:hover { border-color: #a03030; color: #e05050; }
+
+    .gallery-card-cb {
+      position: absolute; top: 8px; left: 8px;
+      width: 18px; height: 18px;
+      background: rgba(10,8,6,0.78); border: 1.5px solid #3a2c1a;
+      border-radius: 2px; cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+      z-index: 10; transition: border-color 0.15s, background 0.15s;
+    }
+    body.select-mode .gallery-card-cb { display: flex; }
+    .gallery-card-cb.checked { background: var(--amber); border-color: var(--amber); }
+    .gallery-card-cb.checked::after {
+      content: ''; width: 5px; height: 9px;
+      border: 1.5px solid #0c0a08; border-top: none; border-left: none;
+      transform: rotate(45deg) translate(-1px,-1px);
+    }
+
+    .gallery-batch-bar {
+      flex-shrink: 0; display: none; align-items: center; gap: 10px;
+      padding: 12px 24px;
+      border-top: 1px solid var(--border-soft); background: var(--panel-bg);
+    }
+    body.select-mode .gallery-batch-bar { display: flex; }
+    .batch-count {
+      flex: 1; font-size: 9px; letter-spacing: 0.2em;
+      text-transform: uppercase; color: var(--text-dim);
+    }
+    .btn-ghost-danger:not(:disabled):hover { color: #e05050 !important; border-color: #a03030 !important; }
+
+    .gallery-empty {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px; padding: 80px 20px; text-align: center;
+    }
+    .gallery-empty-icon { width: 52px; height: 52px; color: var(--text-dim); opacity: 0.3; }
+    .gallery-empty-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28px; font-weight: 300;
+      letter-spacing: 0.07em; color: var(--text-bright);
+    }
+    .gallery-empty-sub {
+      font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase;
+      color: var(--text-dim); margin-top: -6px;
+      max-width: 280px; line-height: 1.8;
+    }
+
+    /* ── SAVE BUTTON ── */
+    .btn-save-photos {
+      display: block; width: 100%; margin-top: 12px; padding: 8px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-dim); font-family: 'Space Mono', monospace;
+      font-size: 8.5px; letter-spacing: 0.18em; text-transform: uppercase;
+      cursor: pointer; transition: all 0.18s; text-align: center;
+    }
+    .btn-save-photos:hover:not(:disabled) { border-color: var(--amber); color: var(--amber); }
+    .btn-save-photos:disabled { opacity: 0.38; cursor: default; }
+
+    /* ── SELECT BUTTON ACTIVE ── */
+    .btn-select-active { background: var(--amber-dim) !important; border-color: var(--amber) !important; color: var(--amber) !important; }
+
+    /* ── ZOOM / FIT BUTTON ── */
+    .btn-fit-zoom {
+      position: absolute; top: 10px; right: 10px; z-index: 10;
+      width: 26px; height: 26px;
+      background: rgba(12,10,8,0.88); border: 1px solid var(--border);
+      border-radius: 2px; color: var(--text-dim); cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+      font-size: 15px; transition: border-color 0.15s, color 0.15s; padding: 0;
+    }
+    .btn-fit-zoom.visible { display: flex; }
+    .btn-fit-zoom:hover { border-color: var(--amber); color: var(--amber); }
+
+    .zoom-badge {
+      position: absolute; top: 10px; right: 42px; z-index: 10;
+      height: 26px; padding: 0 7px;
+      background: rgba(12,10,8,0.88); border: 1px solid var(--border);
+      border-radius: 2px; color: var(--text-dim);
+      font-size: 8px; font-family: 'Space Mono', monospace; letter-spacing: 0.1em;
+      display: none; align-items: center; pointer-events: none;
+    }
+    .zoom-badge.visible { display: flex; }
+
+    /* ── LOADING OVERLAY ── */
+    .loading-overlay {
+      position: absolute; inset: 0; z-index: 20;
+      background: rgba(12,10,8,0.42);
+      display: none; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .loading-overlay.visible { display: flex; }
+    .loading-ring {
+      width: 24px; height: 24px;
+      border: 2px solid rgba(192,120,40,0.18);
+      border-top-color: var(--amber);
+      border-radius: 50%;
+      animation: rl-spin 0.65s linear infinite;
+    }
+    @keyframes rl-spin { to { transform: rotate(360deg); } }
+
+    /* ── EXPORT FORMAT SELECT ── */
+    .export-wrap { display: flex; align-items: stretch; gap: 2px; }
+    .export-fmt {
+      background: var(--panel-bg2); color: var(--text-dim);
+      border: 1px solid var(--border); border-right: none;
+      font-family: 'Space Mono', monospace; font-size: 9px;
+      letter-spacing: 0.08em; cursor: pointer; padding: 0 20px 0 7px;
+      -webkit-appearance: none; appearance: none; min-width: 62px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%235a4a34'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 6px center;
+      transition: border-color 0.15s;
+    }
+    .export-fmt:hover { border-color: #3a2c1a; }
+
+    /* ── SURPRISE ME ── */
+    .btn-surprise {
+      display: block; margin: 8px 15px 14px;
+      padding: 8px; width: calc(100% - 30px);
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-dim); font-family: 'Space Mono', monospace;
+      font-size: 7.5px; letter-spacing: 0.2em; text-transform: uppercase;
+      cursor: pointer; transition: all 0.18s; text-align: center;
+    }
+    .btn-surprise:hover { border-color: var(--amber-light); color: var(--amber-light); }
+
+    /* ── MOBILE ADJUST BUTTON ── */
+    #btn-adjust-mobile {
+      display: none; position: absolute; bottom: 14px; right: 14px; z-index: 15;
+    }
+
+    /* ── MOBILE RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .app-body { flex-direction: column; }
+
+      .left-panel {
+        width: 100%; height: 48px; flex-direction: row;
+        border-right: none; border-bottom: 1px solid var(--border);
+        flex-shrink: 0; overflow: hidden;
+      }
+      .left-panel .panel-header { display: none; }
+      .filter-scroll {
+        display: flex !important; flex-direction: row;
+        overflow-x: auto; overflow-y: hidden; padding: 0; align-items: stretch;
+      }
+      .filter-scroll::-webkit-scrollbar { height: 2px; }
+      .filter-group { display: contents; }
+      .group-label, .group-subtitle { display: none !important; }
+      .fi-iso, .fi-hint { display: none !important; }
+      body.hints-on .group-subtitle,
+      body.hints-on .fi-hint,
+      body.hints-on .slider-info { display: none !important; }
+
+      .filter-item {
+        padding: 0 13px; border-left: none; border-bottom: 2px solid transparent;
+        white-space: nowrap; flex-shrink: 0; height: 48px;
+        display: flex; align-items: center;
+      }
+      .filter-item:hover { background: transparent; }
+      .filter-item.active {
+        background: transparent !important;
+        border-left-color: transparent !important;
+        border-bottom-color: var(--amber);
+        color: var(--amber-light);
+      }
+      .fi-name { font-size: 11px; }
+      .btn-surprise { display: none; }
+
+      .center-panel { flex: 1; min-height: 0; }
+
+      .right-panel {
+        position: fixed; bottom: 0; left: 0; right: 0; width: 100%;
+        max-height: 70vh; overflow-y: auto;
+        border-left: none; border-top: 1px solid var(--border);
+        border-radius: 10px 10px 0 0;
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 200; height: auto;
+      }
+      .right-panel.mobile-open {
+        transform: translateY(0);
+        box-shadow: 0 -8px 40px rgba(0,0,0,0.65);
+      }
+      .right-panel .panel-header {
+        position: relative; padding-top: 22px; cursor: pointer;
+      }
+      .right-panel .panel-header::before {
+        content: ''; position: absolute; top: 9px; left: 50%;
+        transform: translateX(-50%);
+        width: 36px; height: 3px; background: var(--border); border-radius: 2px;
+      }
+      #btn-adjust-mobile { display: flex; }
+      .topbar-right .btn-home,
+      .topbar-right .hints-toggle { display: none !important; }
+      .btn-save-photos { margin-bottom: 30px; }
+      .panel-footer .editor-only.btn-save-photos { margin-bottom: 30px; }
+    }
   </style>
 </head>
-<body>
+<body class="page-editor">
+
+<!-- WELCOME / LANDING PAGE -->
+<div id="welcome">
+  <canvas id="welcome-grain"></canvas>
+  <div class="welcome-inner">
+    <div class="welcome-name">Re<em>Lens</em></div>
+    <div class="welcome-tag">Light &middot; Silver &middot; Memory</div>
+    <div class="welcome-divider"></div>
+    <div class="welcome-actions">
+      <button class="btn btn-primary" id="btn-start">Start Developing</button>
+      <button class="btn btn-ghost"   id="btn-welcome-gallery">My Photos</button>
+    </div>
+  </div>
+</div>
 
 <header class="topbar">
   <div class="logo">
@@ -232,9 +638,24 @@
     <div class="logo-sub">Film Emulation Studio</div>
   </div>
   <div class="topbar-right">
-    <button class="btn btn-ghost" id="btn-export" style="display:none">&#8681; Export JPEG</button>
-    <button class="btn btn-ghost">My Photos</button>
-    <button class="btn btn-primary">&#43; New Photo</button>
+    <button class="btn-home editor-only" id="btn-home" title="Home">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6.5 1.5L1 6H2.5V11.5H5.5V8H7.5V11.5H10.5V6H12L6.5 1.5Z" stroke="currentColor" stroke-width="1" stroke-linejoin="round" fill="none"/>
+      </svg>
+    </button>
+    <label class="hints-toggle editor-only" id="hints-toggle">
+      <span class="hints-switch" id="hints-switch"></span>Hints
+    </label>
+    <div class="export-wrap editor-only" id="btn-export" style="display:none">
+      <select class="export-fmt" id="export-fmt" title="Export format">
+        <option value="jpeg">JPEG</option>
+        <option value="png">PNG</option>
+      </select>
+      <button class="btn btn-ghost" id="btn-export-trigger">&#8681; Export</button>
+    </div>
+    <button class="btn btn-ghost editor-only" id="btn-my-photos">My Photos</button>
+    <button class="btn btn-ghost gallery-only" id="btn-select">Select</button>
+    <button class="btn btn-primary" id="btn-new-photo">&#43; New Photo</button>
   </div>
 </header>
 
@@ -245,37 +666,54 @@
     <div class="filter-scroll">
       <div class="filter-group">
         <div class="group-label">Color Negative</div>
-        <div class="filter-item active" data-filter="portra400"><span class="fi-name">Portra 400</span><span class="fi-iso">400</span></div>
-        <div class="filter-item" data-filter="gold200"><span class="fi-name">Gold 200</span><span class="fi-iso">200</span></div>
-        <div class="filter-item" data-filter="ultramax400"><span class="fi-name">UltraMax 400</span><span class="fi-iso">400</span></div>
-        <div class="filter-item" data-filter="superia400"><span class="fi-name">Superia 400</span><span class="fi-iso">400</span></div>
-        <div class="filter-item" data-filter="ektar100"><span class="fi-name">Ektar 100</span><span class="fi-iso">100</span></div>
-        <div class="filter-item" data-filter="cinestill800t"><span class="fi-name">CineStill 800T</span><span class="fi-iso">800</span></div>
-        <div class="filter-item" data-filter="pro400h"><span class="fi-name">Pro 400H</span><span class="fi-iso">400</span></div>
-        <div class="filter-item" data-filter="colorplus200"><span class="fi-name">ColorPlus 200</span><span class="fi-iso">200</span></div>
-      </div>
-      <div class="filter-group">
-        <div class="group-label">Color Reversal</div>
-        <div class="filter-item" data-filter="velvia50"><span class="fi-name">Velvia 50</span><span class="fi-iso">50</span></div>
-        <div class="filter-item" data-filter="provia100"><span class="fi-name">Provia 100F</span><span class="fi-iso">100</span></div>
-        <div class="filter-item" data-filter="cinestill800"><span class="fi-name">CineStill 800T</span><span class="fi-iso">800</span></div>
-        <div class="filter-item" data-filter="cinestill50"><span class="fi-name">CineStill 50D</span><span class="fi-iso">50</span></div>
+        <div class="group-subtitle">Standard film stocks. Warm, natural, or vivid.</div>
+        <div class="filter-item active" data-filter="portra400"><span class="fi-name">Portra 400</span><span class="fi-iso">400</span><span class="fi-hint">Warm, natural tones. Great for portraits.</span></div>
+        <div class="filter-item" data-filter="gold200"><span class="fi-name">Gold 200</span><span class="fi-iso">200</span><span class="fi-hint">Sunny and warm. Classic holiday feel.</span></div>
+        <div class="filter-item" data-filter="ultramax400"><span class="fi-name">UltraMax 400</span><span class="fi-iso">400</span><span class="fi-hint">Vivid and versatile. Good for everything.</span></div>
+        <div class="filter-item" data-filter="superia400"><span class="fi-name">Superia 400</span><span class="fi-iso">400</span><span class="fi-hint">Cool and crisp. Sharp colors.</span></div>
+        <div class="filter-item" data-filter="ektar100"><span class="fi-name">Ektar 100</span><span class="fi-iso">100</span><span class="fi-hint">Maximum color punch. Fine grain.</span></div>
+        <div class="filter-item" data-filter="cinestill800t"><span class="fi-name">CineStill 800T</span><span class="fi-iso">800</span><span class="fi-hint">City lights glow red-orange. Cinematic.</span></div>
+        <div class="filter-item" data-filter="pro400h"><span class="fi-name">Pro 400H</span><span class="fi-iso">400</span><span class="fi-hint">Soft and pastel. Overcast day look.</span></div>
+        <div class="filter-item" data-filter="colorplus200"><span class="fi-name">ColorPlus 200</span><span class="fi-iso">200</span><span class="fi-hint">Warm and casual. Budget film character.</span></div>
       </div>
       <div class="filter-group">
         <div class="group-label">Black &amp; White</div>
-        <div class="filter-item" data-filter="hp5"><span class="fi-name">HP5 Plus</span><span class="fi-iso">400</span></div>
-        <div class="filter-item" data-filter="trix"><span class="fi-name">Tri-X 400</span><span class="fi-iso">400</span></div>
-        <div class="filter-item" data-filter="delta3200"><span class="fi-name">Delta 3200</span><span class="fi-iso">3200</span></div>
-        <div class="filter-item" data-filter="panf"><span class="fi-name">Pan F Plus</span><span class="fi-iso">50</span></div>
-        <div class="filter-item" data-filter="tmax400"><span class="fi-name">T-Max 400</span><span class="fi-iso">400</span></div>
+        <div class="group-subtitle">Desaturated with different grain and contrast characters.</div>
+        <div class="filter-item" data-filter="bw_trix"><span class="fi-name">Tri-X 400</span><span class="fi-iso">400</span><span class="fi-hint">Bold black and white. Gritty grain.</span></div>
+        <div class="filter-item" data-filter="bw_hp5"><span class="fi-name">HP5 Plus</span><span class="fi-iso">400</span><span class="fi-hint">Soft black and white. Holds shadow detail.</span></div>
+        <div class="filter-item" data-filter="bw_tmax"><span class="fi-name">T-Max 400</span><span class="fi-iso">400</span><span class="fi-hint">Clean black and white. Fine grain.</span></div>
+        <div class="filter-item" data-filter="bw_delta3200"><span class="fi-name">Delta 3200</span><span class="fi-iso">3200</span><span class="fi-hint">Extreme grain. Low light character.</span></div>
+        <div class="filter-item" data-filter="bw_acros"><span class="fi-name">Neopan Acros 100</span><span class="fi-iso">100</span><span class="fi-hint">Smooth, rich black and white.</span></div>
       </div>
       <div class="filter-group">
-        <div class="group-label">Specialty</div>
-        <div class="filter-item" data-filter="lomopurple"><span class="fi-name">Lomochrome Purple</span><span class="fi-iso">100</span></div>
-        <div class="filter-item" data-filter="redscale"><span class="fi-name">Redscale</span><span class="fi-iso">—</span></div>
-        <div class="filter-item" data-filter="crossprocess"><span class="fi-name">Cross Process</span><span class="fi-iso">—</span></div>
-        <div class="filter-item" data-filter="infrared"><span class="fi-name">Infrared</span><span class="fi-iso">—</span></div>
+        <div class="group-label">Lomography Originals</div>
+        <div class="group-subtitle">Experimental emulsions with color shifts that don't exist in nature.</div>
+        <div class="filter-item" data-filter="lomo_purple"><span class="fi-name">Lomochrome Purple</span><span class="fi-iso">100</span><span class="fi-hint">Greens turn purple. Plants go wild.</span></div>
+        <div class="filter-item" data-filter="lomo_turquoise"><span class="fi-name">Lomochrome Turquoise</span><span class="fi-iso">100</span><span class="fi-hint">Blue sky turns amber. Colors invert.</span></div>
+        <div class="filter-item" data-filter="lomo_metropolis"><span class="fi-name">Metropolis</span><span class="fi-iso">400</span><span class="fi-hint">Faded city look. Reds pop through grey.</span></div>
+        <div class="filter-item" data-filter="lomo_redscale"><span class="fi-name">Redscale XR</span><span class="fi-iso">—</span><span class="fi-hint">Everything turns red and orange.</span></div>
+        <div class="filter-item" data-filter="lomo_color92"><span class="fi-name">Color 92</span><span class="fi-iso">400</span><span class="fi-hint">90s pastel warmth. Slightly faded.</span></div>
       </div>
+      <div class="filter-group">
+        <div class="group-label">Camera Signatures</div>
+        <div class="group-subtitle">Simulates a specific camera body and lens, not just the film.</div>
+        <div class="filter-item" data-filter="cam_lca"><span class="fi-name">LOMO LC-A+</span><span class="fi-iso">400</span><span class="fi-hint">Heavy dark corners. Saturated center.</span></div>
+        <div class="filter-item" data-filter="cam_diana"><span class="fi-name">Diana F+</span><span class="fi-iso">—</span><span class="fi-hint">Dreamy soft focus. Light leaks.</span></div>
+        <div class="filter-item" data-filter="cam_holga"><span class="fi-name">Holga 120</span><span class="fi-iso">400</span><span class="fi-hint">Plastic lens softness. Black and white.</span></div>
+        <div class="filter-item" data-filter="cam_minox"><span class="fi-name">Minox 35</span><span class="fi-iso">200</span><span class="fi-hint">Warm German glass. Contrasty and precise.</span></div>
+        <div class="filter-item" data-filter="cam_stylus"><span class="fi-name">Olympus Stylus</span><span class="fi-iso">400</span><span class="fi-hint">Clean 90s snapshot. Slightly cool and honest.</span></div>
+        <div class="filter-item" data-filter="cam_zoom300"><span class="fi-name">Nikon Zoom 300</span><span class="fi-iso">400</span><span class="fi-hint">Consumer zoom softness. Warm family-album feel.</span></div>
+        <div class="filter-item" data-filter="cam_l35af"><span class="fi-name">Nikon L35AF</span><span class="fi-iso">400</span><span class="fi-hint">Warm Nikkor rendering. The quintessential 80s compact.</span></div>
+        <div class="filter-item" data-filter="cam_contax"><span class="fi-name">Contax T2</span><span class="fi-iso">400</span><span class="fi-hint">Zeiss T* glass. Rich, dimensional shadows.</span></div>
+        <div class="filter-item" data-filter="cam_fisheye"><span class="fi-name">Fisheye No. 2</span><span class="fi-iso">100</span><span class="fi-hint">Extreme wide-angle warp.</span></div>
+      </div>
+      <div class="filter-group">
+        <div class="group-label">Experimental</div>
+        <div class="group-subtitle">Cross-processing and degraded film effects.</div>
+        <div class="filter-item" data-filter="exp_crossprocess"><span class="fi-name">Cross-Process</span><span class="fi-iso">—</span><span class="fi-hint">Surreal color inversion.</span></div>
+        <div class="filter-item" data-filter="exp_expired"><span class="fi-name">Expired 35mm</span><span class="fi-iso">—</span><span class="fi-hint">Faded and foggy. Unpredictable.</span></div>
+      </div>
+      <button class="btn-surprise" id="btn-surprise">&#9646; Surprise Me</button>
     </div>
   </aside>
 
@@ -302,39 +740,82 @@
     <div class="canvas-wrap" id="canvas-wrap">
       <canvas id="gl-canvas"></canvas>
       <canvas id="overlay-2d"></canvas>
+      <div class="loading-overlay" id="loading-overlay"><div class="loading-ring"></div></div>
+      <button class="btn-fit-zoom" id="btn-fit-zoom" title="Fit to screen">&#x26F6;</button>
+      <div class="zoom-badge" id="zoom-badge">100%</div>
+      <button class="btn btn-ghost" id="btn-adjust-mobile">&#9881; Adjust</button>
     </div>
   </main>
 
   <aside class="right-panel">
-    <div class="panel-header"><div class="panel-label">Adjustments</div></div>
+    <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div class="panel-label">Adjustments</div>
+      <button class="btn-reset-all" id="btn-reset-all">&#8635; Reset</button>
+    </div>
     <div class="adj-scroll">
       <div class="adj-group">
-        <div class="adj-row"><span class="adj-name">Grain</span><span class="adj-val" id="v-grain">0</span></div>
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Grain</span>
+            <span class="slider-info">i<span class="tip">The sandy texture seen in film. More = more vintage.</span></span>
+          </div>
+          <span class="adj-val" id="v-grain">0</span>
+        </div>
         <input class="adj-slider" type="range" id="s-grain" min="0" max="100" value="0">
         <button class="adj-reset" data-target="s-grain">reset</button>
       </div>
       <div class="adj-group">
-        <div class="adj-row"><span class="adj-name">Vignette</span><span class="adj-val" id="v-vignette">0</span></div>
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Vignette</span>
+            <span class="slider-info">i<span class="tip">Darkens the corners of the image.</span></span>
+          </div>
+          <span class="adj-val" id="v-vignette">0</span>
+        </div>
         <input class="adj-slider" type="range" id="s-vignette" min="0" max="100" value="0">
         <button class="adj-reset" data-target="s-vignette">reset</button>
       </div>
       <div class="adj-group">
-        <div class="adj-row"><span class="adj-name">Fade</span><span class="adj-val" id="v-fade">0</span></div>
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Fade</span>
+            <span class="slider-info">i<span class="tip">Lifts blacks so shadows look washed out instead of pure black.</span></span>
+          </div>
+          <span class="adj-val" id="v-fade">0</span>
+        </div>
         <input class="adj-slider" type="range" id="s-fade" min="0" max="100" value="0">
         <button class="adj-reset" data-target="s-fade">reset</button>
       </div>
       <div class="adj-group">
-        <div class="adj-row"><span class="adj-name">Color Temp</span><span class="adj-val" id="v-colortemp">0</span></div>
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Color Temp</span>
+            <span class="slider-info">i<span class="tip">Shifts the overall image warm (orange) or cool (blue).</span></span>
+          </div>
+          <span class="adj-val" id="v-colortemp">0</span>
+        </div>
         <input class="adj-slider" type="range" id="s-colortemp" min="-100" max="100" value="0">
         <button class="adj-reset" data-target="s-colortemp">reset</button>
       </div>
       <div class="adj-group">
-        <div class="adj-row"><span class="adj-name">Saturation</span><span class="adj-val" id="v-saturation">0</span></div>
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Saturation</span>
+            <span class="slider-info">i<span class="tip">How intense the colors are.</span></span>
+          </div>
+          <span class="adj-val" id="v-saturation">0</span>
+        </div>
         <input class="adj-slider" type="range" id="s-saturation" min="-100" max="100" value="0">
         <button class="adj-reset" data-target="s-saturation">reset</button>
       </div>
       <div class="adj-group">
-        <div class="adj-row"><span class="adj-name">Halation</span><span class="adj-val" id="v-halation">0</span></div>
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Halation</span>
+            <span class="slider-info">i<span class="tip">Glow that bleeds around bright lights. Signature of CineStill.</span></span>
+          </div>
+          <span class="adj-val" id="v-halation">0</span>
+        </div>
         <input class="adj-slider" type="range" id="s-halation" min="0" max="100" value="0">
         <button class="adj-reset" data-target="s-halation">reset</button>
       </div>
@@ -342,9 +823,20 @@
     <div class="panel-footer">
       <p>Stock &nbsp;<span id="footer-stock">Portra 400</span></p>
       <p>Pipeline &nbsp;<span>WebGL · 3-pass</span></p>
+      <button class="btn-save-photos editor-only" id="btn-save-photos" disabled>&#8593; Save to My Photos</button>
     </div>
   </aside>
 
+</div>
+
+<!-- GALLERY PAGE -->
+<div id="gallery-page">
+  <div class="gallery-scroll" id="gallery-scroll"></div>
+  <div class="gallery-batch-bar" id="gallery-batch-bar">
+    <span class="batch-count" id="batch-count">No items selected</span>
+    <button class="btn btn-ghost" id="btn-batch-dl" disabled>&#8681; Download</button>
+    <button class="btn btn-ghost btn-ghost-danger" id="btn-batch-delete" disabled>&#10005; Delete</button>
+  </div>
 </div>
 
 <script>
@@ -363,23 +855,110 @@ const VERT = `
   }
 `;
 
-/* Pass 1 – colour grading: LUT · colour matrix · RGB shift · saturation · shadow lift · halation */
+/* Pass 1 – colour grading: optional channel remap · per-hue rotation (HSL) · LUT ·
+            colour matrix · RGB shift · global saturation · shadow lift · halation    */
 const FRAG_MAIN = `
   precision highp float;
   varying vec2 v_uv;
 
   uniform sampler2D u_image;
-  uniform sampler2D u_lut;        /* 256×1 RGBA — R/G/B channels = per-channel curves */
-  uniform mat3      u_colorMat;   /* column-major 3×3 colour matrix                   */
-  uniform vec3      u_rgbShift;   /* additive per-channel offset                      */
-  uniform float     u_saturation; /* 0 = greyscale, 1 = normal, >1 = boosted          */
-  uniform float     u_shadowLift; /* 0..1 — lift shadow floor                        */
-  uniform float     u_halation;   /* 0..1 — red bloom on highlights                  */
-  uniform vec2      u_imgOffset;  /* letterbox UV origin                              */
-  uniform vec2      u_imgScale;   /* letterbox UV extent                              */
+  uniform sampler2D u_lut;
+
+  uniform mat3  u_colorMat;
+  uniform vec3  u_rgbShift;
+  uniform float u_saturation;
+  uniform float u_shadowLift;
+  uniform float u_halation;
+  uniform vec2  u_imgOffset;
+  uniform vec2  u_imgScale;
+
+  /* Channel remap (Lomography Redscale) */
+  uniform float u_remapEnabled;
+  uniform mat3  u_remapMat;
+
+  /* Hue rotation bands — x=centre(0-1) y=halfWidth(0-1) z=rotation(0-1=360°) w=satMul */
+  uniform vec4 u_hueBand0;
+  uniform vec4 u_hueBand1;
+  uniform vec4 u_hueBand2;
+  uniform vec4 u_hueBand3;
+
+  /* Selective saturation zone (e.g. Metropolis reds, Color92 yellow-greens) */
+  uniform float u_selSatCenter;
+  uniform float u_selSatHalfW;
+  uniform float u_selSatMul;
+
+  /* Black & White desaturation + optional warm tint */
+  uniform float u_bwEnabled;
+  uniform vec3  u_lumaMix;    /* custom R/G/B luma weights for desaturation */
+  uniform vec3  u_tintRGB;    /* warm paper-white colour (e.g. Acros)      */
+  uniform float u_tintAmt;    /* 0=no tint, 1=full tint                     */
+
+  /* Lens distortion (LC-A+, Fisheye No.2) */
+  uniform float u_distK1;     /* radial distortion coefficient              */
+
+  /* Soft focus (Diana F+, Holga 120) */
+  uniform float u_softBlend;  /* 0=sharp, 1=full blur                       */
+  uniform vec2  u_softSigma;  /* blur step radius in canvas pixels          */
+  uniform vec2  u_canvasSize; /* canvas dimensions for UV step computation  */
+
+  /* Base fog / expired emulsion */
+  uniform vec3  u_fogColor;   /* fog target colour (0..1 per channel)       */
+  uniform float u_fogAmt;     /* fog strength (0=none)                      */
+
+  /* Light leak — gradient at one screen edge, screen-blended */
+  uniform float u_leakEdge;    /* 0=none 1=left 2=right 3=top 4=bottom     */
+  uniform vec3  u_leakColor;   /* leak colour (0..1 per channel)            */
+  uniform float u_leakOpacity; /* peak opacity at edge                      */
+  uniform float u_leakWidth;   /* fraction of screen covered (0..1)         */
+
+  /* ── RGB ↔ HSL conversion ── */
+  vec3 rgb2hsl(vec3 c) {
+    float hi = max(c.r, max(c.g, c.b));
+    float lo = min(c.r, min(c.g, c.b));
+    float d  = hi - lo;
+    float l  = (hi + lo) * 0.5;
+    if (d < 0.0001) return vec3(0.0, 0.0, l);
+    float s = d / (1.0 - abs(2.0*l - 1.0));
+    float h = 0.0;
+    if      (c.r >= c.g && c.r >= c.b) h = mod((c.g - c.b)/d, 6.0)/6.0;
+    else if (c.g >= c.b)               h = ((c.b - c.r)/d + 2.0)/6.0;
+    else                               h = ((c.r - c.g)/d + 4.0)/6.0;
+    return vec3(fract(h + 1.0), clamp(s, 0.0, 1.0), l);
+  }
+
+  float hueChan(float p, float q, float t) {
+    t = fract(t + 1.0);
+    if (t < 1.0/6.0)  return p + (q-p)*6.0*t;
+    if (t < 0.5)       return q;
+    if (t < 2.0/3.0)   return p + (q-p)*(2.0/3.0-t)*6.0;
+    return p;
+  }
+  vec3 hsl2rgb(float h, float s, float l) {
+    if (s < 0.0001) return vec3(l);
+    float q = (l < 0.5) ? l*(1.0+s) : l+s-l*s;
+    float p = 2.0*l - q;
+    return vec3(hueChan(p,q,h+1.0/3.0), hueChan(p,q,h), hueChan(p,q,h-1.0/3.0));
+  }
+
+  /* Smooth blend weight for a hue range, handles 0/1 wraparound */
+  float hueBandBlend(float hue, float center, float halfW) {
+    if (halfW < 0.0001) return 0.0;
+    float d = abs(mod(hue - center + 0.5, 1.0) - 0.5);
+    float t = clamp(1.0 - d/halfW, 0.0, 1.0);
+    return t*t*(3.0 - 2.0*t);
+  }
 
   void main() {
-    vec2 imgUV = (v_uv - u_imgOffset) / u_imgScale;
+    /* Lens distortion — warp screen UV before letterbox mapping */
+    vec2 screenUV = v_uv;
+    if (abs(u_distK1) > 0.001) {
+      vec2 dc = screenUV * 2.0 - 1.0;
+      float r2 = dot(dc, dc);
+      dc *= 1.0 + u_distK1 * r2;
+      screenUV = dc * 0.5 + 0.5;
+    }
+
+    vec2 imgUV = (screenUV - u_imgOffset) / u_imgScale;
     if (imgUV.x < 0.0 || imgUV.x > 1.0 || imgUV.y < 0.0 || imgUV.y > 1.0) {
       gl_FragColor = vec4(0.047, 0.039, 0.031, 1.0);
       return;
@@ -387,47 +966,128 @@ const FRAG_MAIN = `
 
     vec3 c = texture2D(u_image, imgUV).rgb;
 
-    /* Shadow lift: compress blacks upward, leaves highlights alone */
-    vec3 shadow = (1.0 - c) * (1.0 - c);
-    c += u_shadowLift * shadow * 0.32;
+    /* Soft focus — 9-tap box-Gaussian pre-grade blur, blended at u_softBlend */
+    if (u_softBlend > 0.001) {
+      vec2 dp = u_softSigma / u_canvasSize;
+      vec3 blr =
+        texture2D(u_image, clamp(imgUV+vec2(-dp.x,-dp.y),0.,1.)).rgb * 0.0625 +
+        texture2D(u_image, clamp(imgUV+vec2( 0.  ,-dp.y),0.,1.)).rgb * 0.125  +
+        texture2D(u_image, clamp(imgUV+vec2( dp.x,-dp.y),0.,1.)).rgb * 0.0625 +
+        texture2D(u_image, clamp(imgUV+vec2(-dp.x, 0.  ),0.,1.)).rgb * 0.125  +
+        c                                                               * 0.25   +
+        texture2D(u_image, clamp(imgUV+vec2( dp.x, 0.  ),0.,1.)).rgb * 0.125  +
+        texture2D(u_image, clamp(imgUV+vec2(-dp.x, dp.y),0.,1.)).rgb * 0.0625 +
+        texture2D(u_image, clamp(imgUV+vec2( 0.  , dp.y),0.,1.)).rgb * 0.125  +
+        texture2D(u_image, clamp(imgUV+vec2( dp.x, dp.y),0.,1.)).rgb * 0.0625;
+      c = mix(c, blr, u_softBlend);
+    }
 
-    /* Per-channel tone curve via 256-entry 1D LUT.
-       Texel centres: i/256 + 0.5/256 = i*0.00390625 + 0.001953125 */
+    /* 1. Optional channel remap (Redscale: R→oranges, G→reds, B→gone) */
+    if (u_remapEnabled > 0.5) c = clamp(u_remapMat * c, 0.0, 1.0);
+
+    /* 2. Per-hue rotation in HSL space */
+    vec3 hsl = rgb2hsl(c);
+    float rot  = 0.0;
+    float satD = 0.0;
+    float b    = 0.0;
+
+    b = hueBandBlend(hsl.x, u_hueBand0.x, u_hueBand0.y);
+    rot += u_hueBand0.z * b;  satD += (u_hueBand0.w - 1.0) * b;
+
+    b = hueBandBlend(hsl.x, u_hueBand1.x, u_hueBand1.y);
+    rot += u_hueBand1.z * b;  satD += (u_hueBand1.w - 1.0) * b;
+
+    b = hueBandBlend(hsl.x, u_hueBand2.x, u_hueBand2.y);
+    rot += u_hueBand2.z * b;  satD += (u_hueBand2.w - 1.0) * b;
+
+    b = hueBandBlend(hsl.x, u_hueBand3.x, u_hueBand3.y);
+    rot += u_hueBand3.z * b;  satD += (u_hueBand3.w - 1.0) * b;
+
+    hsl.x = fract(hsl.x + rot + 1.0);
+    hsl.y = clamp(hsl.y * (1.0 + satD), 0.0, 1.0);
+
+    /* 3. Selective saturation zone (applied after hue shift) */
+    b = hueBandBlend(hsl.x, u_selSatCenter, u_selSatHalfW);
+    hsl.y = clamp(hsl.y * mix(1.0, u_selSatMul, b), 0.0, 1.0);
+
+    c = hsl2rgb(hsl.x, hsl.y, hsl.z);
+
+    /* B&W desaturation — convert to luma using custom per-stock weights */
+    if (u_bwEnabled > 0.5) {
+      float bwL = dot(c, u_lumaMix);
+      c = vec3(bwL);
+    }
+
+    /* 4. Shadow lift */
+    vec3 shadow = (1.0 - c) * (1.0 - c);
+    c += u_shadowLift * shadow * 0.157;  /* slider 100 lifts pure black to 40/255 */
+
+    /* 5. Per-channel tone curve via 256-entry 1D LUT */
     float lutR = texture2D(u_lut, vec2(c.r * 0.99609375 + 0.001953125, 0.5)).r;
     float lutG = texture2D(u_lut, vec2(c.g * 0.99609375 + 0.001953125, 0.5)).g;
     float lutB = texture2D(u_lut, vec2(c.b * 0.99609375 + 0.001953125, 0.5)).b;
     c = vec3(lutR, lutG, lutB);
 
-    /* 3×3 colour matrix (column-major in GLSL) */
+    /* 6. 3×3 colour matrix */
     c = u_colorMat * c;
 
-    /* Additive RGB shifts (colour temperature etc.) */
+    /* 7. Additive RGB shift (preset base + colour-temperature slider) */
     c += u_rgbShift;
 
-    /* Saturation — Rec.709 luminance */
+    /* 8. Global saturation — Rec.709 luminance */
     float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
     c = mix(vec3(lum), c, u_saturation);
 
-    /* Halation — red channel bleeds into bright highlights (film back-scatter) */
-    float hiMask = max(0.0, lum - 0.72) * (1.0 / 0.28);
+    /* 9. Halation — red bloom on bright highlights */
+    float hiMask = max(0.0, lum - 0.72) * (1.0/0.28);
     c.r += hiMask * hiMask * u_halation * 0.45;
     c.g += hiMask * hiMask * u_halation * 0.06;
+
+    /* Warm tint blend (e.g. Acros 100 paper-white) */
+    if (u_bwEnabled > 0.5 && u_tintAmt > 0.001) {
+      c = mix(c, u_tintRGB, u_tintAmt);
+    }
+
+    /* Base fog / expired emulsion — luma-dependent push toward fog colour */
+    if (u_fogAmt > 0.001) {
+      float fogL = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      float fogBlend = clamp((1.0 - fogL * 0.8) * u_fogAmt, 0.0, 1.0);
+      c = mix(c, u_fogColor, fogBlend);
+    }
+
+    /* Light leak — screen-edge gradient, screen-blended */
+    if (u_leakEdge > 0.5 && u_leakOpacity > 0.001) {
+      float dist;
+      if (u_leakEdge < 1.5)
+        dist = max(0.0, 1.0 - v_uv.x / u_leakWidth);
+      else if (u_leakEdge < 2.5)
+        dist = max(0.0, (v_uv.x - (1.0 - u_leakWidth)) / u_leakWidth);
+      else if (u_leakEdge < 3.5)
+        dist = max(0.0, (v_uv.y - (1.0 - u_leakWidth)) / u_leakWidth);
+      else
+        dist = max(0.0, 1.0 - v_uv.y / u_leakWidth);
+      float leakMask = dist * dist;
+      vec3 leak = u_leakColor * (u_leakOpacity * leakMask);
+      c = c + leak - c * leak;  /* screen blend */
+    }
 
     gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
   }
 `;
 
-/* Pass 2 – grain: luminance-weighted hash noise with chroma amount */
+/* Pass 2 – grain: smooth value noise, two-octave organic grain */
 const FRAG_GRAIN = `
   precision highp float;
   varying vec2 v_uv;
 
   uniform sampler2D u_tex;
-  uniform float     u_intensity; /* 0..1 normalised grain strength  */
-  uniform float     u_size;      /* grain pixel footprint            */
-  uniform float     u_chroma;    /* 0 = luma grain, 1 = colour grain */
-  uniform float     u_seed;      /* per-image random offset          */
-  uniform vec2      u_res;       /* canvas dimensions in pixels      */
+  uniform float     u_intensity;  /* 0..1 normalised grain strength (layer 1) */
+  uniform float     u_size;       /* grain pixel footprint (layer 1)           */
+  uniform float     u_chroma;     /* 0 = luma grain, 1 = colour grain          */
+  uniform float     u_seed;       /* per-image random offset                   */
+  uniform vec2      u_res;        /* canvas dimensions in pixels               */
+  uniform float     u_intensity2; /* second grain layer (Delta 3200 coarse)    */
+  uniform float     u_size2;      /* second layer pixel footprint              */
 
   float hash21(vec2 p) {
     p  = fract(p * vec2(127.1, 311.7));
@@ -435,24 +1095,55 @@ const FRAG_GRAIN = `
     return fract(p.x * p.y);
   }
 
+  /* Smooth value noise: bilinear interpolation between random grid corners.
+     Returns [-1, 1]. No blockiness — organic continuous variation. */
+  float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f); /* smoothstep ease */
+    float a = hash21(i);
+    float b = hash21(i + vec2(1.0, 0.0));
+    float c = hash21(i + vec2(0.0, 1.0));
+    float d = hash21(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 2.0 - 1.0;
+  }
+
+  /* Two-octave grain layer.
+     Fine octave: grain character at sz pixels.
+     Coarse octave: silver-halide clumping at ~2.5x sz.
+     Chroma adds independent per-channel noise at the fine scale. */
+  vec3 grainLayer(float sz, float sd) {
+    vec2 px  = v_uv * u_res;
+    vec2 off = vec2(sd * 7.3, sd * 3.1);
+
+    vec2 p1 = px / sz + off;
+    vec2 p2 = px / (sz * 2.5) + off * 1.4;
+
+    /* Luma grain: blend fine detail and coarser clumping */
+    float luma = vnoise(p1) * 0.72 + vnoise(p2) * 0.28;
+
+    /* Chroma grain: per-channel spatial offsets, shared coarse structure */
+    float cr = vnoise(p1 + vec2(17.3,  5.1)) * 0.72 + vnoise(p2 + vec2(37.1, 0.0)) * 0.28;
+    float cg = vnoise(p1 + vec2( 3.7, 43.7)) * 0.72 + vnoise(p2 + vec2(37.1, 0.0)) * 0.28;
+    float cb = vnoise(p1 + vec2(71.9, 13.1)) * 0.72 + vnoise(p2 + vec2(37.1, 0.0)) * 0.28;
+
+    return mix(vec3(luma), vec3(cr, cg, cb), u_chroma);
+  }
+
   void main() {
     vec4 col = texture2D(u_tex, v_uv);
     float lum = dot(col.rgb, vec3(0.2126, 0.7152, 0.0722));
 
-    /* Midtone-weighted mask — grain is minimal in pure blacks/whites */
-    float mask = lum * (1.0 - lum) * 4.0;
+    /* Shadow-weighted mask: grain peaks in shadows, fades in highlights.
+       Real film grain is most visible where silver density is highest (shadows). */
+    float mask = clamp(1.0 - lum * 0.78, 0.18, 1.0);
 
-    /* Snap UV to a grid of grain-size pixels */
-    vec2 gUV = floor(v_uv * u_res / u_size) + vec2(u_seed * 7.3, u_seed * 3.1);
+    col.rgb += grainLayer(u_size, u_seed) * u_intensity * mask;
 
-    float nl  = hash21(gUV)                     * 2.0 - 1.0;  /* luma noise   */
-    float nr  = hash21(gUV + vec2(17.3, 0.0))   * 2.0 - 1.0;
-    float ng  = hash21(gUV + vec2(0.0,  43.7))  * 2.0 - 1.0;
-    float nb  = hash21(gUV + vec2(71.9, 13.1))  * 2.0 - 1.0;
+    if (u_intensity2 > 0.001) {
+      col.rgb += grainLayer(u_size2, u_seed + 17.9) * u_intensity2 * mask;
+    }
 
-    vec3 noise = mix(vec3(nl), vec3(nr, ng, nb), u_chroma);
-
-    col.rgb += noise * u_intensity * mask;
     gl_FragColor = vec4(clamp(col.rgb, 0.0, 1.0), 1.0);
   }
 `;
@@ -470,6 +1161,14 @@ const FRAG_COMP = `
   uniform vec2      u_imgOffset;
   uniform vec2      u_imgScale;
   uniform float     u_aspect;    /* canvas width / height                */
+
+  /* Fisheye circular crop */
+  uniform float u_circularCrop;
+
+  /* Sprocket Rocket borders */
+  uniform float u_sprocket;
+  uniform float u_sprocketBandH; /* fraction of canvas height per band   */
+  uniform float u_sprocketCount; /* number of holes per row               */
 
   void main() {
     vec4 color;
@@ -491,6 +1190,28 @@ const FRAG_COMP = `
       float dist = length(c) / maxD;
       float vig  = 1.0 - u_vigStrength * pow(clamp(dist, 0.0, 1.0), u_vigPower);
       color.rgb  *= clamp(vig, 0.0, 1.0);
+    }
+
+    /* Circular crop mask (Fisheye No. 2) — blacks out corners outside circle */
+    if (u_circularCrop > 0.5) {
+      float cr = length((v_uv - 0.5) * vec2(u_aspect, 1.0)) * 2.0;
+      color.rgb *= 1.0 - smoothstep(0.95, 1.0, cr);
+    }
+
+    /* Sprocket Rocket borders — overwrite top/bottom bands with film-strip design */
+    if (u_sprocket > 0.5) {
+      float bh     = u_sprocketBandH;
+      float inBot  = step(v_uv.y, bh);
+      float inTop  = step(1.0 - bh, v_uv.y);
+      float inBand = max(inBot, inTop);
+      float bandT  = v_uv.y < 0.5 ? (v_uv.y / bh) : ((1.0 - v_uv.y) / bh);
+      float cellX  = fract(v_uv.x * u_sprocketCount + 0.5) - 0.5;
+      float edgeX  = 1.0 - smoothstep(0.24, 0.28, abs(cellX));
+      float edgeY  = 1.0 - smoothstep(0.29, 0.35, abs(bandT - 0.5));
+      float hole   = edgeX * edgeY * inBand;
+      vec3  bandBG = vec3(0.078, 0.071, 0.063);
+      vec3  holeC  = vec3(0.941, 0.922, 0.863);
+      color.rgb    = mix(color.rgb, mix(bandBG, holeC, hole), inBand);
     }
 
     gl_FragColor = color;
@@ -537,9 +1258,22 @@ function cacheU(prog, names) {
   names.forEach(n => { m[n] = gl.getUniformLocation(prog, n); });
   return m;
 }
-const uMain  = cacheU(progMain,  ['u_image','u_lut','u_colorMat','u_rgbShift','u_saturation','u_shadowLift','u_halation','u_imgOffset','u_imgScale']);
-const uGrain = cacheU(progGrain, ['u_tex','u_intensity','u_size','u_chroma','u_seed','u_res']);
-const uComp  = cacheU(progComp,  ['u_processed','u_original','u_vigStrength','u_vigPower','u_sliderPos','u_imgOffset','u_imgScale','u_aspect']);
+const uMain  = cacheU(progMain,  [
+  'u_image','u_lut','u_colorMat','u_rgbShift','u_saturation','u_shadowLift','u_halation','u_imgOffset','u_imgScale',
+  'u_remapEnabled','u_remapMat',
+  'u_hueBand0','u_hueBand1','u_hueBand2','u_hueBand3',
+  'u_selSatCenter','u_selSatHalfW','u_selSatMul',
+  'u_bwEnabled','u_lumaMix','u_tintRGB','u_tintAmt',
+  'u_distK1',
+  'u_softBlend','u_softSigma','u_canvasSize',
+  'u_fogColor','u_fogAmt',
+  'u_leakEdge','u_leakColor','u_leakOpacity','u_leakWidth',
+]);
+const uGrain = cacheU(progGrain, ['u_tex','u_intensity','u_size','u_chroma','u_seed','u_res','u_intensity2','u_size2']);
+const uComp  = cacheU(progComp,  [
+  'u_processed','u_original','u_vigStrength','u_vigPower','u_sliderPos','u_imgOffset','u_imgScale','u_aspect',
+  'u_circularCrop','u_sprocket','u_sprocketBandH','u_sprocketCount',
+]);
 
 /* Cached attribute locations */
 const aMain  = gl.getAttribLocation(progMain,  'a_pos');
@@ -613,8 +1347,7 @@ function uploadLUT(buildFn) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 }
 
-/* Identity LUT — each channel maps to itself */
-uploadLUT(i => ({ r: i, g: i, b: i }));
+/* LUT is initialised by applyPreset() at the bottom of this script */
 
 /* ─── Image texture ─── */
 let imgTex = null;
@@ -642,6 +1375,53 @@ let grainSeed  = 42;
 
 /* Letterbox mapping in WebGL UV space (y=0 at bottom of screen) */
 let imgUV = { ox: 0, oy: 0, sx: 1, sy: 1 };
+
+/* Zoom / pan state (panX/Y in WebGL image-UV space, 0.5 = centre) */
+let zoomLevel = 1.0;
+let panX      = 0.5;
+let panY      = 0.5;
+let panning   = false;
+let panStart  = null;
+
+/* Preset-level state — things controlled by the active film stock, not individual sliders */
+let presetRgbShift    = [0, 0, 0];   /* [r, g, b] normalised 0..1 additive shift  */
+let presetGrainSize   = 1.0;         /* grain pixel footprint                     */
+let presetGrainChroma = 0.28;        /* 0 = luma grain, 1 = full colour grain     */
+let presetGrainBase   = 0.05;        /* natural intensity at 1× (slider=33)       */
+let presetVigPower    = 2.2;         /* vignette falloff exponent                 */
+let currentPresetKey  = 'portra400'; /* key of the last applied preset            */
+
+/* Hue-pass uniforms (Lomography presets; identity = no effect for standard stocks) */
+const _BAND_OFF = [0, 0, 0, 1.0];   /* halfW=0 → blend=0 → band disabled         */
+let presetHueBands     = [_BAND_OFF, _BAND_OFF, _BAND_OFF, _BAND_OFF];
+let presetRemapEnabled = 0.0;
+let presetRemapMat     = new Float32Array([1,0,0, 0,1,0, 0,0,1]); /* identity col-major */
+let presetSelSatCenter = 0.0;
+let presetSelSatHalfW  = 0.0;
+let presetSelSatMul    = 1.0;
+
+/* B&W pass state (disabled by default for colour stocks) */
+let presetBwEnabled       = 0.0;
+let presetLumaMix         = new Float32Array([0.2126, 0.7152, 0.0722]);
+let presetTintRGB         = new Float32Array([1.0, 1.0, 1.0]);
+let presetTintAmt         = 0.0;
+let presetGrain2Intensity = 0.0;
+let presetGrain2Size      = 1.0;
+
+/* Camera / effect pass state */
+let presetDistK1         = 0.0;
+let presetSoftBlend      = 0.0;
+let presetSoftSigma      = new Float32Array([0.0, 0.0]);
+let presetFogColor       = new Float32Array([1.0, 1.0, 1.0]);
+let presetFogAmt         = 0.0;
+let presetLeakEdge       = 0.0;
+let presetLeakColor      = new Float32Array([1.0, 0.63, 0.24]);
+let presetLeakOpacity    = 0.0;
+let presetLeakWidth      = 0.12;
+let presetCircularCrop   = 0.0;
+let presetSprocket       = 0.0;
+let presetSprocketBandH  = 0.12;
+let presetSprocketCount  = 12.0;
 
 /* Uniform values (updated by sliders) */
 let uGrainVal    = 0;   /* 0..1  */
@@ -677,12 +1457,29 @@ function computeImgUV(cw, ch) {
    RENDER PIPELINE  (runs fully on GPU, zero CPU image processing)
 ═══════════════════════════════════════════════════════════════ */
 
-function renderPipeline(sp) {
+/* Compute zoom-adjusted UV (or return letterbox UV when zoom=1) */
+function effectiveUV() {
+  if (zoomLevel <= 1.0001) return imgUV;
+  const { ox, oy, sx, sy } = imgUV;
+  const hw = 0.5 / zoomLevel;
+  const px = Math.max(hw, Math.min(1 - hw, panX));
+  const py = Math.max(hw, Math.min(1 - hw, panY));
+  return {
+    ox: ox + sx * (px - hw),
+    oy: oy + sy * (py - hw),
+    sx: sx / zoomLevel,
+    sy: sy / zoomLevel,
+  };
+}
+
+function renderPipeline(sp, uvOverride) {
   if (!sourceImg || !imgTex || !lutTex) return;
 
   const cw = glCanvas.width, ch = glCanvas.height;
   ensureFBOs(cw, ch);
   gl.viewport(0, 0, cw, ch);
+
+  const _uv = uvOverride || effectiveUV();
 
   /* ── PASS 1 — colour grading → fboA ── */
   gl.bindFramebuffer(gl.FRAMEBUFFER, fboA.fbo);
@@ -692,19 +1489,52 @@ function renderPipeline(sp) {
   bindTex(0, imgTex); gl.uniform1i(uMain.u_image, 0);
   bindTex(1, lutTex); gl.uniform1i(uMain.u_lut,   1);
 
-  /* Colour matrix — identity now; future film-stock matrices slot in here */
+  /* Colour matrix — identity; per-stock colour matrices can slot in here */
   gl.uniformMatrix3fv(uMain.u_colorMat, false, IDENTITY_MAT3);
 
-  /* Colour temperature as additive RGB shift
+  /* Hue rotation / channel remap (Lomography presets) */
+  gl.uniform1f(uMain.u_remapEnabled, presetRemapEnabled);
+  gl.uniformMatrix3fv(uMain.u_remapMat, false, presetRemapMat);
+  const _b = presetHueBands;
+  gl.uniform4f(uMain.u_hueBand0, _b[0][0], _b[0][1], _b[0][2], _b[0][3]);
+  gl.uniform4f(uMain.u_hueBand1, _b[1][0], _b[1][1], _b[1][2], _b[1][3]);
+  gl.uniform4f(uMain.u_hueBand2, _b[2][0], _b[2][1], _b[2][2], _b[2][3]);
+  gl.uniform4f(uMain.u_hueBand3, _b[3][0], _b[3][1], _b[3][2], _b[3][3]);
+  gl.uniform1f(uMain.u_selSatCenter, presetSelSatCenter);
+  gl.uniform1f(uMain.u_selSatHalfW,  presetSelSatHalfW);
+  gl.uniform1f(uMain.u_selSatMul,    presetSelSatMul);
+
+  /* B&W desaturation + tint */
+  gl.uniform1f(uMain.u_bwEnabled,  presetBwEnabled);
+  gl.uniform3fv(uMain.u_lumaMix,   presetLumaMix);
+  gl.uniform3fv(uMain.u_tintRGB,   presetTintRGB);
+  gl.uniform1f(uMain.u_tintAmt,    presetTintAmt);
+
+  /* Camera / effect passes */
+  gl.uniform1f(uMain.u_distK1,      presetDistK1);
+  gl.uniform1f(uMain.u_softBlend,   presetSoftBlend);
+  gl.uniform2fv(uMain.u_softSigma,  presetSoftSigma);
+  gl.uniform2f(uMain.u_canvasSize,  cw, ch);
+  gl.uniform3fv(uMain.u_fogColor,   presetFogColor);
+  gl.uniform1f(uMain.u_fogAmt,      presetFogAmt);
+  gl.uniform1f(uMain.u_leakEdge,    presetLeakEdge);
+  gl.uniform3fv(uMain.u_leakColor,  presetLeakColor);
+  gl.uniform1f(uMain.u_leakOpacity, presetLeakOpacity);
+  gl.uniform1f(uMain.u_leakWidth,   presetLeakWidth);
+
+  /* RGB shift = preset base shift + colour-temperature slider adjustment
      warm (+) → more red/yellow; cool (−) → more blue */
-  const ct = uColorTempV * 0.055;
-  gl.uniform3f(uMain.u_rgbShift, ct, ct * 0.25, -ct);
+  const ct = uColorTempV * (15.0 / 255.0);  /* warm +100 → R+15/255, cool −100 → B+15/255 */
+  gl.uniform3f(uMain.u_rgbShift,
+    presetRgbShift[0] + ct,
+    presetRgbShift[1] + ct * 0.25,
+    presetRgbShift[2] - ct);
 
   gl.uniform1f(uMain.u_saturation,  uSatVal);
   gl.uniform1f(uMain.u_shadowLift,  uFadeVal);
   gl.uniform1f(uMain.u_halation,    uHalVal);
-  gl.uniform2f(uMain.u_imgOffset,   imgUV.ox, imgUV.oy);
-  gl.uniform2f(uMain.u_imgScale,    imgUV.sx, imgUV.sy);
+  gl.uniform2f(uMain.u_imgOffset,   _uv.ox, _uv.oy);
+  gl.uniform2f(uMain.u_imgScale,    _uv.sx, _uv.sy);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
@@ -714,11 +1544,13 @@ function renderPipeline(sp) {
   bindQuad(aGrain);
 
   bindTex(0, fboA.tex); gl.uniform1i(uGrain.u_tex, 0);
-  gl.uniform1f(uGrain.u_intensity, uGrainVal * 0.20);
-  gl.uniform1f(uGrain.u_size,      1.0 + uGrainVal * 2.5);
-  gl.uniform1f(uGrain.u_chroma,    0.28);
-  gl.uniform1f(uGrain.u_seed,      grainSeed);
-  gl.uniform2f(uGrain.u_res,       cw, ch);
+  gl.uniform1f(uGrain.u_intensity,  uGrainVal * 3.0 * presetGrainBase);
+  gl.uniform1f(uGrain.u_size,       presetGrainSize);   /* preset-defined pixel footprint */
+  gl.uniform1f(uGrain.u_chroma,     presetGrainChroma); /* preset-defined colour vs luma ratio */
+  gl.uniform1f(uGrain.u_seed,       grainSeed);
+  gl.uniform2f(uGrain.u_res,        cw, ch);
+  gl.uniform1f(uGrain.u_intensity2, presetGrain2Intensity); /* second layer (Delta 3200) */
+  gl.uniform1f(uGrain.u_size2,      presetGrain2Size);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
@@ -730,12 +1562,16 @@ function renderPipeline(sp) {
   bindTex(0, fboB.tex); gl.uniform1i(uComp.u_processed, 0);
   bindTex(1, imgTex);   gl.uniform1i(uComp.u_original,  1);
 
-  gl.uniform1f(uComp.u_vigStrength, uVigVal * 0.88);
-  gl.uniform1f(uComp.u_vigPower,    2.2);
-  gl.uniform1f(uComp.u_sliderPos,   sp);
-  gl.uniform2f(uComp.u_imgOffset,   imgUV.ox, imgUV.oy);
-  gl.uniform2f(uComp.u_imgScale,    imgUV.sx, imgUV.sy);
-  gl.uniform1f(uComp.u_aspect,      cw / ch);
+  gl.uniform1f(uComp.u_vigStrength,     uVigVal * 0.60);  /* slider 100 → max strength 0.60 */
+  gl.uniform1f(uComp.u_vigPower,        presetVigPower);
+  gl.uniform1f(uComp.u_sliderPos,       sp);
+  gl.uniform2f(uComp.u_imgOffset,       _uv.ox, _uv.oy);
+  gl.uniform2f(uComp.u_imgScale,        _uv.sx, _uv.sy);
+  gl.uniform1f(uComp.u_aspect,          cw / ch);
+  gl.uniform1f(uComp.u_circularCrop,    presetCircularCrop);
+  gl.uniform1f(uComp.u_sprocket,        presetSprocket);
+  gl.uniform1f(uComp.u_sprocketBandH,   presetSprocketBandH);
+  gl.uniform1f(uComp.u_sprocketCount,   presetSprocketCount);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.flush();
@@ -761,26 +1597,32 @@ function drawOverlay() {
   oc.restore();
 
   /* Handle circle */
-  const hy = ch / 2, hr = 20;
+  const hy = ch / 2, hr = 22;
   oc.save();
-  oc.shadowColor = 'rgba(192,120,40,0.4)';
-  oc.shadowBlur  = 14;
-  oc.fillStyle   = '#111009';
+  oc.shadowColor = 'rgba(192,120,40,0.5)';
+  oc.shadowBlur  = 18;
+  oc.fillStyle   = '#0f0d0a';
   oc.beginPath(); oc.arc(sx, hy, hr, 0, Math.PI * 2); oc.fill();
-  oc.strokeStyle = 'rgba(192,120,40,0.88)'; oc.lineWidth = 1.5; oc.stroke();
+  oc.strokeStyle = 'rgba(192,120,40,0.92)'; oc.lineWidth = 1.5; oc.stroke();
   oc.restore();
 
-  /* Chevrons inside handle */
-  function chevron(cx, cy, dir) {
-    const s = 5, t = 3;
+  /* Arrows + centre grip */
+  function arrow(cx, cy, dir) {
+    const s = 6, t = 4;
     oc.beginPath();
     if (dir === 'l') { oc.moveTo(cx+t, cy-s); oc.lineTo(cx-t, cy); oc.lineTo(cx+t, cy+s); }
     else             { oc.moveTo(cx-t, cy-s); oc.lineTo(cx+t, cy); oc.lineTo(cx-t, cy+s); }
-    oc.strokeStyle = 'rgba(192,120,40,0.9)';
-    oc.lineWidth = 1.6; oc.lineJoin = 'round'; oc.stroke();
+    oc.strokeStyle = 'rgba(192,120,40,0.95)';
+    oc.lineWidth = 1.8; oc.lineJoin = 'round'; oc.lineCap = 'round'; oc.stroke();
   }
-  chevron(sx - 6, hy, 'l');
-  chevron(sx + 6, hy, 'r');
+  arrow(sx - 7, hy, 'l');
+  arrow(sx + 7, hy, 'r');
+
+  /* Centre grip dots */
+  oc.fillStyle = 'rgba(192,120,40,0.45)';
+  [-4, 0, 4].forEach(dy => {
+    oc.beginPath(); oc.arc(sx, hy + dy, 1.2, 0, Math.PI * 2); oc.fill();
+  });
 
   /* Labels — placed just inside the image edges */
   const imgPxLeft  = imgUV.ox * cw;
@@ -837,6 +1679,15 @@ const btnExport  = document.getElementById('btn-export');
 function onImageLoaded(img) {
   sourceImg = img;
   grainSeed = Math.random() * 999;
+
+  /* Reset zoom on every new image */
+  zoomLevel = 1.0; panX = 0.5; panY = 0.5;
+  updateZoomUI();
+
+  /* Show loading overlay while texture uploads */
+  const _lo = document.getElementById('loading-overlay');
+  if (_lo) _lo.classList.add('visible');
+
   uploadImageTex(img);
 
   uploadZone.style.display = 'none';
@@ -849,10 +1700,23 @@ function onImageLoaded(img) {
   ol.width        = w;  ol.height        = h;
   computeImgUV(w, h);
   scheduleRender();
+
+  /* Hide overlay after first render frame */
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (_lo) _lo.classList.remove('visible');
+  }));
+
+  const _bs = document.getElementById('btn-save-photos');
+  if (_bs) _bs.disabled = false;
 }
+
+let currentFilename     = 'photo.jpg';
+let currentOriginalBlob = null;
 
 function loadFile(file) {
   if (!file || !file.type.startsWith('image/')) return;
+  currentFilename     = file.name;
+  currentOriginalBlob = file;
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.onload  = () => { onImageLoaded(img); URL.revokeObjectURL(url); };
@@ -876,12 +1740,698 @@ uploadZone.addEventListener('drop', e => {
    SLIDERS  (wired to GPU uniforms, trigger pipeline re-render)
 ═══════════════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════════════
+   CUBIC SPLINE INTERPOLATION — used to generate film-stock LUTs
+═══════════════════════════════════════════════════════════════ */
+
+function buildCubicSpline(pts) {
+  /* pts: [[x, y], …] sorted by x — both axes in 0..255 domain */
+  const np = pts.length;
+  if (np === 0) return () => 0;
+  if (np === 1) return () => pts[0][1];
+
+  const n  = np - 1;  /* number of intervals */
+  const xs = pts.map(p => p[0]);
+  const ys = pts.map(p => p[1]);
+  const h  = new Array(n);
+  for (let i = 0; i < n; i++) h[i] = xs[i+1] - xs[i];
+
+  const m = n - 1;  /* interior unknowns (natural: M[0]=M[n]=0) */
+  if (m <= 0) {
+    /* Only two points — fall back to linear */
+    const k = (ys[1] - ys[0]) / h[0];
+    return t => t <= xs[0] ? ys[0] : t >= xs[n] ? ys[n] : ys[0] + k*(t-xs[0]);
+  }
+
+  /* Build symmetric tridiagonal system */
+  const dg  = new Array(m), off = new Array(m-1), rhs = new Array(m);
+  for (let i = 0; i < m; i++) {
+    const k = i+1;
+    dg[i]  = 2*(h[k-1]+h[k]);
+    rhs[i] = 6*((ys[k+1]-ys[k])/h[k] - (ys[k]-ys[k-1])/h[k-1]);
+  }
+  for (let i = 0; i < m-1; i++) off[i] = h[i+1];
+
+  /* Thomas algorithm — forward sweep */
+  const dg2 = dg.slice(), d = rhs.slice();
+  for (let i = 1; i < m; i++) {
+    const f = off[i-1] / dg2[i-1];
+    dg2[i] -= f * off[i-1];
+    d[i]   -= f * d[i-1];
+  }
+  /* Back substitution */
+  const c = new Array(m);
+  c[m-1] = d[m-1] / dg2[m-1];
+  for (let i = m-2; i >= 0; i--) c[i] = (d[i] - off[i]*c[i+1]) / dg2[i];
+
+  const M = [0, ...c, 0];  /* second derivatives at all knots */
+
+  return function(t) {
+    if (t <= xs[0]) return ys[0];
+    if (t >= xs[n]) return ys[n];
+    let lo = 0, hi = n-1;
+    while (lo < hi-1) { const mid = (lo+hi)>>1; if (t < xs[mid+1]) hi=mid; else lo=mid; }
+    const i = lo, dt = t-xs[i], du = xs[i+1]-t, hi2 = h[i];
+    return  M[i]   /(6*hi2)*du*du*du
+          + M[i+1] /(6*hi2)*dt*dt*dt
+          + (ys[i]  /hi2 - M[i]  *hi2/6)*du
+          + (ys[i+1]/hi2 - M[i+1]*hi2/6)*dt;
+  };
+}
+
+/* Blend two LUT builder functions at ratio t (0=fn1, 1=fn2) */
+function blendLUTs(fn1, fn2, t) {
+  return i => {
+    const a = fn1(i), b = fn2(i);
+    return {
+      r: Math.round(a.r * (1 - t) + b.r * t),
+      g: Math.round(a.g * (1 - t) + b.g * t),
+      b: Math.round(a.b * (1 - t) + b.b * t),
+    };
+  };
+}
+
+/* Compose composite + per-channel splines into a single 256-entry LUT builder */
+function buildPresetLUT(comp, red, green, blue) {
+  const fComp = buildCubicSpline(comp);
+  const fR    = buildCubicSpline(red);
+  const fG    = buildCubicSpline(green);
+  const fB    = buildCubicSpline(blue);
+  return i => {
+    const c = fComp(i);  /* composite tone curve first */
+    return {
+      r: Math.round(Math.max(0, Math.min(255, fR(c)))),
+      g: Math.round(Math.max(0, Math.min(255, fG(c)))),
+      b: Math.round(Math.max(0, Math.min(255, fB(c)))),
+    };
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FILM STOCK PRESETS
+   Slider mappings:
+     grainSlider 0-100  → uGrain.u_intensity = (v/100)*0.20
+     vigSlider   0-100  → uComp.u_vigStrength = (v/100)*0.88
+     satSlider  -100..100 → uSatVal = 1 + v/100
+     halSlider   0-100  → uHalVal = v/100
+═══════════════════════════════════════════════════════════════ */
+
+const PRESETS = {
+
+  portra400: {
+    name: 'Kodak Portra 400', iso: '400',
+    comp:  [[0,12],[64,72],[128,132],[192,196],[255,248]],
+    red:   [[0,10],[128,134],[255,250]],
+    green: [[0, 8],[128,128],[255,252]],
+    blue:  [[0,14],[128,122],[255,245]],
+    rgbShift: [ 4/255,  1/255,  -2/255],
+    grainSlider: 25,  grainSize: 1.4, grainChroma: 0.08,
+    vigSlider: 14,    vigPower: 2.0,
+    satSlider: -5,    halSlider: 0,
+  },
+  /* grainSlider 25 → intensity 0.05  (±5 % luma variation at midtones — subtle, true to Portra) */
+
+  gold200: {
+    name: 'Kodak Gold 200', iso: '200',
+    comp:  [[0,8],[64,74],[128,136],[192,200],[255,252]],
+    red:   [[0,12],[128,140],[255,255]],
+    green: [[0, 8],[128,130],[255,250]],
+    blue:  [[0, 6],[128,118],[255,235]],
+    rgbShift: [10/255,  4/255, -12/255],
+    grainSlider: 15,  grainSize: 1.0, grainChroma: 0.12,
+    vigSlider: 11,    vigPower: 1.8,
+    satSlider:  8,    halSlider: 0,
+  },
+  /* grainSlider 15 → intensity 0.03  (fine — 200 ISO consumer stock) */
+
+  ultramax400: {
+    name: 'Kodak UltraMax 400', iso: '400',
+    comp:  [[0,6],[64,70],[128,133],[192,198],[255,253]],
+    red:   [[0, 8],[128,136],[192,202],[255,255]],
+    green: [[0, 6],[128,128],[255,250]],
+    blue:  [[0,12],[64, 72],[128,124],[255,248]],
+    rgbShift: [ 6/255,  0,       4/255],
+    grainSlider: 28,  grainSize: 1.4, grainChroma: 0.15,
+    vigSlider:  9,    vigPower: 1.8,
+    satSlider: 10,    halSlider: 0,
+  },
+  /* grainSlider 28 → intensity 0.056  (slightly more structured grain than Portra) */
+
+  superia400: {
+    name: 'Fuji Superia 400', iso: '400',
+    comp:  [[0,5],[64,68],[128,132],[192,200],[255,252]],
+    red:   [[0, 4],[128,126],[255,248]],
+    green: [[0,10],[64, 74],[128,132],[255,252]],
+    blue:  [[0, 8],[128,120],[255,240]],
+    rgbShift: [-4/255,  8/255,  -6/255],
+    grainSlider: 26,  grainSize: 1.4, grainChroma: 0.18,
+    vigSlider: 11,    vigPower: 2.0,
+    satSlider:  6,    halSlider: 0,
+  },
+  /* grainSlider 26 → intensity 0.052  (higher chroma grain gives Fuji micro-colour texture) */
+
+  ektar100: {
+    name: 'Kodak Ektar 100', iso: '100',
+    comp:  [[0,2],[64,60],[128,130],[192,202],[255,255]],
+    red:   [[0,0],[128,138],[255,255]],
+    green: [[0,0],[128,130],[255,252]],
+    blue:  [[0,4],[128,122],[255,250]],
+    rgbShift: [ 8/255,  2/255,  -6/255],
+    grainSlider:  6,  grainSize: 0.8, grainChroma: 0.05,
+    vigSlider:  7,    vigPower: 2.0,
+    satSlider: 20,    halSlider: 0,
+  },
+  /* grainSlider 6 → intensity 0.012  (virtually invisible — Ektar is the finest-grain colour negative) */
+
+  cinestill800t: {
+    name: 'CineStill 800T', iso: '800',
+    comp:  [[0,10],[64,68],[128,130],[192,195],[255,248]],
+    red:   [[0, 8],[128,118],[255,228]],
+    green: [[0,10],[128,126],[255,240]],
+    blue:  [[0,18],[64, 82],[128,148],[255,255]],
+    rgbShift: [-18/255, -6/255, 24/255],
+    grainSlider: 42,  grainSize: 2.0, grainChroma: 0.20,
+    vigSlider: 17,    vigPower: 2.2,
+    satSlider: -8,    halSlider: 55,
+  },
+  /* grainSlider 42 → intensity 0.084  (chunky cinema grain — still heaviest of the 8 but not overwhelming) */
+
+  pro400h: {
+    name: 'Fuji Pro 400H', iso: '400',
+    comp:  [[0,14],[64,72],[128,128],[192,192],[255,244]],
+    red:   [[0,10],[128,124],[255,242]],
+    green: [[0,12],[128,128],[255,248]],
+    blue:  [[0,16],[128,130],[255,252]],
+    rgbShift: [-6/255,  2/255,  8/255],
+    grainSlider: 20,  grainSize: 1.4, grainChroma: 0.08,
+    vigSlider:  9,    vigPower: 1.6,
+    satSlider: -12,   halSlider: 0,
+  },
+  /* grainSlider 20 → intensity 0.04  (flat, pastel-oriented stock — grain stays in background) */
+
+  colorplus200: {
+    name: 'Kodak ColorPlus 200', iso: '200',
+    comp:  [[0,16],[64,76],[128,134],[192,196],[255,246]],
+    red:   [[0,14],[128,136],[255,248]],
+    green: [[0,10],[128,128],[255,244]],
+    blue:  [[0, 8],[128,116],[255,230]],
+    rgbShift: [ 8/255,  2/255, -14/255],
+    grainSlider: 20,  grainSize: 1.0, grainChroma: 0.14,
+    vigSlider: 16,    vigPower: 2.0,
+    satSlider: -5,    halSlider: 0,
+  },
+  /* grainSlider 20 → intensity 0.04  (budget consumer stock — moderate, warm-tinted grain) */
+
+  /* ─── Lomography Originals ──────────────────────────────────────────── */
+
+  lomo_purple: {
+    name: 'Lomochrome Purple', iso: '100',
+    comp:  [[0,10],[64,68],[128,130],[192,196],[255,252]],
+    red:   [[0,0],[255,255]],  /* identity per-channel — hue rotation does the heavy lifting */
+    green: [[0,0],[255,255]],
+    blue:  [[0,0],[255,255]],
+    rgbShift: [0, 0, 0],
+    huePass: {
+      bands: [
+        [120/360,  40/360,  150/360, 1.3 ],  /* greens 80°-160°   → violet/purple, +30% sat */
+        [62.5/360, 17.5/360, 120/360, 1.2 ],  /* yellows 45°-80°   → magenta, +20% sat      */
+        [230/360,  30/360,  -40/360, 1.0 ],  /* blues 200°-260°   → slight cool shift       */
+        [0,        20/360,    0,      1.05],  /* reds 0°-20°/340°+ → sat nudge only          */
+      ],
+    },
+    grainSlider: 30,  grainSize: 1.4, grainChroma: 0.20,
+    vigSlider: 20,    vigPower: 2.2,
+    satSlider: 15,    halSlider: 0,
+  },
+
+  lomo_turquoise: {
+    name: 'Lomochrome Turquoise', iso: '100',
+    comp:  [[0,8],[64,70],[128,132],[192,198],[255,252]],
+    red:   [[0,0],[255,255]],
+    green: [[0,0],[255,255]],
+    blue:  [[0,0],[255,255]],
+    rgbShift: [0, 0, 0],
+    huePass: {
+      bands: [
+        [220/360, 40/360,  160/360, 1.4],   /* blues/cyans 180°-260° → vivid turquoise  */
+        [ 25/360, 25/360,  160/360, 1.3],   /* reds/oranges 0°-50°   → magenta-pink     */
+        [120/360, 40/360,  -20/360, 1.2],   /* greens 80°-160°       → yellow-green     */
+        [0, 0, 0, 1.0],                      /* band 3: disabled                         */
+      ],
+    },
+    grainSlider: 30,  grainSize: 1.4, grainChroma: 0.22,
+    vigSlider: 18,    vigPower: 2.0,
+    satSlider: 20,    halSlider: 0,
+  },
+
+  lomo_metropolis: {
+    name: 'Metropolis', iso: '400',
+    /* Contrasty, cool-neutral tone with warm reds standing out from a desaturated field */
+    comp:  [[0,0],[64,56],[128,128],[192,206],[255,255]],
+    red:   [[0,0],[128,136],[192,210],[255,255]],
+    green: [[0,0],[128,118],[255,240]],
+    blue:  [[0,0],[128,112],[255,230]],
+    rgbShift: [12/255, -8/255, -10/255],
+    huePass: {
+      /* Selective +60% sat on reds/oranges BEFORE the −35% global desaturation.
+         Net effect: reds ≈ neutral (1.6×0.65=1.04), everything else desaturated (0.65). */
+      selSat: [25/360, 25/360, 1.6],
+    },
+    grainSlider: 30,  grainSize: 1.4, grainChroma: 0.12,
+    vigSlider: 23,    vigPower: 2.5,
+    satSlider: -35,   halSlider: 0,
+  },
+
+  lomo_redscale: {
+    name: 'Redscale XR', iso: '—',
+    /* Full channel remap first: output is almost entirely in the red/orange/yellow range */
+    comp:  [[0,0],[64,50],[128,130],[192,210],[255,255]],
+    red:   [[0,0],[255,255]],
+    green: [[0,0],[255,255]],
+    blue:  [[0,0],[255,255]],
+    rgbShift: [0, 0, 0],
+    huePass: {
+      remapEnabled: 1,
+      /* Column-major mat3 for GLSL:  Rout=1.4R+0.3G  Gout=0.5R+0.2G  Bout=0.1R */
+      remapMat: new Float32Array([1.4, 0.5, 0.1,  0.3, 0.2, 0.0,  0.0, 0.0, 0.0]),
+      selSat: [25/360, 25/360, 1.15],  /* nudge reds/oranges slightly more vivid */
+    },
+    grainSlider: 45,  grainSize: 2.0, grainChroma: 0.25,
+    vigSlider: 28,    vigPower: 2.5,
+    satSlider: 0,     halSlider: 0,
+  },
+
+  lomo_color92: {
+    name: 'Color 92', iso: '400',
+    comp:  [[0,18],[64,76],[128,132],[192,196],[255,244]],
+    red:   [[0,14],[128,132],[255,248]],
+    green: [[0,12],[128,128],[255,246]],
+    blue:  [[0,16],[128,120],[255,238]],
+    rgbShift: [6/255, 4/255, -8/255],
+    huePass: {
+      /* +10% sat on yellow-greens (60°-130°) — gives the slightly over-processed summer look */
+      selSat: [95/360, 35/360, 1.10],
+    },
+    grainSlider: 18,  grainSize: 1.0, grainChroma: 0.12,
+    vigSlider: 14,    vigPower: 1.8,
+    satSlider: -8,    halSlider: 0,
+  },
+
+  /* ── Black & White ──────────────────────────────────────────────────────── */
+
+  bw_trix: {
+    name: 'Kodak Tri-X 400', iso: '400',
+    /* High-contrast S-curve — deep shadows, snappy highlights */
+    comp:  [[0,0],[64,52],[128,132],[192,212],[255,255]],
+    red:   [[0,0],[255,255]], green: [[0,0],[255,255]], blue: [[0,0],[255,255]],
+    rgbShift: [0, 0, 0],
+    bwPass: { lumaMix: [0.299, 0.587, 0.114] },
+    grainSlider: 90,  grainSize: 1.6, grainChroma: 0.0,
+    vigSlider: 23,    vigPower: 2.2,
+    satSlider: 0,     halSlider: 0,
+  },
+
+  bw_hp5: {
+    name: 'Ilford HP5 Plus', iso: '400',
+    /* Gentle lift in shadows, slightly cool-grey response */
+    comp:  [[0,4],[64,60],[128,128],[192,196],[255,252]],
+    red:   [[0,0],[255,255]], green: [[0,0],[255,255]], blue: [[0,0],[255,255]],
+    rgbShift: [0, 0, 0],
+    bwPass: { lumaMix: [0.27, 0.63, 0.10] },
+    grainSlider: 70,  grainSize: 1.3, grainChroma: 0.0,
+    vigSlider: 16,    vigPower: 2.0,
+    satSlider: 0,     halSlider: 0,
+  },
+
+  bw_tmax: {
+    name: 'Kodak T-Max 400', iso: '400',
+    /* Ultra-fine grain, near-linear response — the technical stock */
+    comp:  [[0,2],[64,62],[128,128],[192,194],[255,254]],
+    red:   [[0,0],[255,255]], green: [[0,0],[255,255]], blue: [[0,0],[255,255]],
+    rgbShift: [0, 0, 0],
+    bwPass: { lumaMix: [0.299, 0.587, 0.114] },
+    grainSlider: 50,  grainSize: 1.0, grainChroma: 0.0,
+    vigSlider: 9,     vigPower: 1.8,
+    satSlider: 0,     halSlider: 0,
+  },
+
+  bw_delta3200: {
+    name: 'Ilford Delta 3200', iso: '3200',
+    /* Pushed shadows with rolled-off highlights — the pushed-to-3200 look */
+    comp:  [[0,0],[48,30],[128,134],[200,220],[255,255]],
+    red:   [[0,0],[255,255]], green: [[0,0],[255,255]], blue: [[0,0],[255,255]],
+    rgbShift: [0, 0, 0],
+    bwPass: { lumaMix: [0.299, 0.587, 0.114] },
+    /* Dual-layer: fine (slider-driven) + fixed coarse overlay */
+    grain2: { intensity: 0.08, size: 7.0 },
+    grainSlider: 100, grainSize: 3.0, grainChroma: 0.0,
+    vigSlider: 25,    vigPower: 2.5,
+    satSlider: 0,     halSlider: 0,
+  },
+
+  bw_acros: {
+    name: 'Fuji Neopan Acros 100', iso: '100',
+    /* Gentle S-curve, green-biased luma weights, subtle warm paper-white tint */
+    comp:  [[0,0],[64,58],[128,126],[192,198],[255,255]],
+    red:   [[0,0],[255,255]], green: [[0,0],[255,255]], blue: [[0,0],[255,255]],
+    rgbShift: [0, 0, 0],
+    bwPass: {
+      lumaMix: [0.28, 0.55, 0.17],
+      tintRGB: [253/255, 250/255, 244/255],  /* warm paper white */
+      tintAmt: 0.08,
+    },
+    grainSlider: 15,  grainSize: 0.7, grainChroma: 0.0,
+    vigSlider: 11,    vigPower: 1.8,
+    satSlider: 0,     halSlider: 0,
+  },
+
+  /* ── Camera Signatures ─────────────────────────────────────────────────── */
+
+  cam_lca: {
+    name: 'LOMO LC-A+', iso: '400',
+    /* Fuji Superia 400 colour base with heavy barrel vignette and barrel distortion */
+    comp:  [[0,5],[64,68],[128,132],[192,200],[255,252]],
+    red:   [[0, 4],[128,126],[255,248]],
+    green: [[0,10],[64, 74],[128,132],[255,252]],
+    blue:  [[0, 8],[128,120],[255,240]],
+    rgbShift: [-4/255, 8/255, -6/255],
+    cameraPass: { distK1: 0.04 },
+    grainSlider: 26,  grainSize: 1.4, grainChroma: 0.18,
+    vigSlider: 63,    vigPower: 3.5,
+    satSlider: 18,    halSlider: 0,
+  },
+
+  cam_diana: {
+    name: 'Diana F+', iso: '—',
+    /* 50/50 blend of Portra 400 and Pro 400H — soft, dreamy, slightly cool */
+    lutBlend: { src1: 'portra400', src2: 'pro400h', ratio: 0.5 },
+    rgbShift: [-1/255, 2/255, 3/255],   /* average of portra + pro400h */
+    cameraPass: {
+      softBlend: 0.30,
+      softSigma: [0.8, 0.8],
+      /* Light leak: left edge, warm amber, randomised opacity + width */
+      lightLeak: {
+        edge: 1, color: [1.0, 160/255, 60/255],
+        opacityMin: 0.12, opacityMax: 0.25,
+        widthMin:   0.08, widthMax:   0.15,
+      },
+    },
+    grainSlider: 22,  grainSize: 1.4, grainChroma: 0.08,
+    vigSlider: 40,    vigPower: 2.0,
+    satSlider: -9,    halSlider: 0,
+  },
+
+  cam_holga: {
+    name: 'Holga 120', iso: '400',
+    /* HP5 Plus B&W base — soft focus, heavy vignette, random light leak */
+    comp:  [[0,4],[64,60],[128,128],[192,196],[255,252]],
+    red:   [[0,0],[255,255]], green: [[0,0],[255,255]], blue: [[0,0],[255,255]],
+    rgbShift: [0, 0, 0],
+    bwPass: { lumaMix: [0.27, 0.63, 0.10] },
+    cameraPass: {
+      softBlend: 0.40,
+      softSigma: [1.2, 1.2],
+      /* 40% chance of a light leak at a random edge */
+      lightLeakProb: {
+        probability: 0.4,
+        color: [240/255, 90/255, 30/255],
+        opacityMin: 0.08, opacityMax: 0.18,
+        width: 0.22,
+      },
+    },
+    grainSlider: 70,  grainSize: 1.3, grainChroma: 0.0,
+    vigSlider: 51,    vigPower: 2.8,
+    satSlider: 0,     halSlider: 0,
+  },
+
+  cam_minox: {
+    name: 'Minox 35', iso: '200',
+    /* Color-Minotar 35mm f/2.8 — warm German glass, contrasty, compact metering lift */
+    comp:  [[0,8],[64,72],[128,138],[192,204],[255,250]],
+    red:   [[0, 8],[128,132],[255,252]],
+    green: [[0, 4],[128,130],[255,250]],
+    blue:  [[0, 2],[128,118],[255,232]],
+    rgbShift: [6/255, 2/255, -12/255],
+    grainSlider: 18,  grainSize: 1.0, grainChroma: 0.12,
+    vigSlider: 28,    vigPower: 2.2,
+    satSlider: 8,     halSlider: 5,
+  },
+
+  cam_stylus: {
+    name: 'Olympus Stylus', iso: '400',
+    /* 35mm f/2.8 — clean 90s snapshot rendering, slight cool-blue cast */
+    comp:  [[0,4],[64,68],[128,130],[192,196],[255,252]],
+    red:   [[0, 0],[128,124],[255,244]],
+    green: [[0, 2],[128,128],[255,250]],
+    blue:  [[0, 6],[128,136],[255,254]],
+    rgbShift: [-6/255, 0, 8/255],
+    grainSlider: 22,  grainSize: 1.2, grainChroma: 0.16,
+    vigSlider: 18,    vigPower: 1.8,
+    satSlider: -5,    halSlider: 12,
+  },
+
+  cam_zoom300: {
+    name: 'Nikon Zoom 300', iso: '400',
+    /* Consumer 38-105mm zoom — soft corners, barrel distortion, warm auto-exposure cast */
+    comp:  [[0,12],[64,74],[128,134],[192,198],[255,246]],
+    red:   [[0, 8],[128,132],[255,248]],
+    green: [[0, 6],[128,128],[255,244]],
+    blue:  [[0, 4],[128,114],[255,226]],
+    rgbShift: [8/255, 2/255, -14/255],
+    cameraPass: {
+      distK1: 0.035,       /* barrel distortion at wide end */
+      softBlend: 0.18,     /* consumer lens softness        */
+      softSigma: [0.6, 0.6],
+    },
+    grainSlider: 24,  grainSize: 1.2, grainChroma: 0.16,
+    vigSlider: 22,    vigPower: 2.0,
+    satSlider: -8,    halSlider: 8,
+  },
+
+  cam_l35af: {
+    name: 'Nikon L35AF', iso: '400',
+    /* Nikkor 35mm f/2.8 — golden portrait warmth, subtle barrel, halation */
+    comp:  [[0,6],[64,72],[128,136],[192,200],[255,248]],
+    red:   [[0,10],[128,136],[255,254]],
+    green: [[0, 6],[128,130],[255,248]],
+    blue:  [[0, 2],[128,112],[255,224]],
+    rgbShift: [10/255, 4/255, -18/255],
+    cameraPass: { distK1: 0.025 },
+    grainSlider: 20,  grainSize: 1.1, grainChroma: 0.14,
+    vigSlider: 24,    vigPower: 2.0,
+    satSlider: 6,     halSlider: 18,
+  },
+
+  cam_contax: {
+    name: 'Contax T2', iso: '400',
+    /* Zeiss 38mm T* — deep blacks, lifted upper mids, neutral-warm, micro-contrast */
+    comp:  [[0,0],[64,62],[128,138],[192,210],[255,254]],
+    red:   [[0, 4],[128,132],[255,252]],
+    green: [[0, 2],[128,130],[255,250]],
+    blue:  [[0, 0],[128,120],[255,238]],
+    rgbShift: [4/255, 0, -8/255],
+    grainSlider: 20,  grainSize: 1.0, grainChroma: 0.10,
+    vigSlider: 16,    vigPower: 1.8,
+    satSlider: 5,     halSlider: 8,
+  },
+
+  cam_fisheye: {
+    name: 'Fisheye No. 2', iso: '100',
+    /* LomoChrome Purple base with strong fisheye distortion + circular crop */
+    comp:  [[0,10],[64,68],[128,130],[192,196],[255,252]],
+    red:   [[0,0],[255,255]], green: [[0,0],[255,255]], blue: [[0,0],[255,255]],
+    rgbShift: [0, 0, 0],
+    huePass: {
+      bands: [
+        [120/360,  40/360,  150/360, 1.3 ],
+        [62.5/360, 17.5/360, 120/360, 1.2 ],
+        [230/360,  30/360,  -40/360, 1.0 ],
+        [0,        20/360,    0,      1.05],
+      ],
+    },
+    cameraPass: { distK1: -0.7, circularCrop: 1.0 },
+    grainSlider: 30,  grainSize: 1.4, grainChroma: 0.28,
+    vigSlider: 80,    vigPower: 4.0,
+    satSlider: 15,    halSlider: 0,
+  },
+
+  /* ── Experimental ──────────────────────────────────────────────────────── */
+
+  exp_crossprocess: {
+    name: 'Cross-Process', iso: '—',
+    /* Aggressively non-monotonic per-channel curves — the E-6 pushed as C-41 look */
+    comp:  [[0,0],[255,255]],
+    red:   [[0,40],[128,100],[200,220],[255,255]],
+    green: [[0, 0],[100,120],[160,170],[255,200]],
+    blue:  [[0,80],[128, 60],[200, 40],[255, 30]],
+    rgbShift: [0, 0, 0],
+    grainSlider: 80,  grainSize: 1.4, grainChroma: 0.30,
+    vigSlider: 23,    vigPower: 2.0,
+    satSlider: 35,    halSlider: 0,
+  },
+
+  exp_expired: {
+    name: 'Expired 35mm', iso: '—',
+    /* Faded shadows, green cast, heavy dual-layer grain — pushed past expiry */
+    comp:  [[0,28],[64,80],[128,128],[192,186],[255,238]],
+    red:   [[0,0],[255,255]], green: [[0,0],[255,255]], blue: [[0,0],[255,255]],
+    rgbShift: [-4/255, 8/255, -6/255],
+    cameraPass: {
+      fogColor: [180/255, 200/255, 160/255], fogAmt: 0.12,
+      channelDrift: [[-3, 3], [-2, 2], [-4, 4]],  /* [min,max] pixel offsets per channel */
+      vigPowerVariation: 0.10,
+    },
+    /* Dual-layer grain: fine (slider-driven) + fixed coarse overlay */
+    grain2: { intensity: 0.09, size: 4.0 },
+    grainSlider: 65,  grainSize: 1.4, grainChroma: 0.28,
+    vigSlider: 32,    vigPower: 2.2,
+    satSlider: -8,    halSlider: 0,
+  },
+
+};
+
+/* Set a slider to a value and fire its input handler (updates uniforms + scheduleRender) */
+function setSlider(id, value) {
+  const s = document.getElementById('s-' + id);
+  if (!s) return;
+  s.value = value;
+  s.dispatchEvent(new Event('input'));
+}
+
+/* Apply a film-stock preset: upload its LUT, update preset-level uniforms, set sliders */
+function applyPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+
+  /* Build & upload LUT — either direct cubic spline or a blend of two presets */
+  if (p.lutBlend) {
+    const s1 = PRESETS[p.lutBlend.src1], s2 = PRESETS[p.lutBlend.src2];
+    const fn1 = buildPresetLUT(s1.comp, s1.red, s1.green, s1.blue);
+    const fn2 = buildPresetLUT(s2.comp, s2.red, s2.green, s2.blue);
+    uploadLUT(blendLUTs(fn1, fn2, p.lutBlend.ratio));
+  } else {
+    uploadLUT(buildPresetLUT(p.comp, p.red, p.green, p.blue));
+  }
+
+  currentPresetKey = key;
+
+  /* Store preset-level state used directly in renderPipeline */
+  presetRgbShift    = p.rgbShift.slice();
+  presetGrainSize   = p.grainSize;
+  presetGrainChroma = p.grainChroma;
+  presetGrainBase   = p.grainSlider / 100 * 0.20;  /* 1× intensity for this stock */
+  presetVigPower    = p.vigPower;
+
+  /* Hue-pass state — defaults to identity (no effect) for standard film stocks */
+  const hp = p.huePass || {};
+  presetHueBands     = hp.bands || [_BAND_OFF, _BAND_OFF, _BAND_OFF, _BAND_OFF];
+  presetRemapEnabled = hp.remapEnabled || 0;
+  presetRemapMat     = hp.remapMat     || new Float32Array([1,0,0, 0,1,0, 0,0,1]);
+  const ss           = hp.selSat       || [0, 0, 1];
+  presetSelSatCenter = ss[0];
+  presetSelSatHalfW  = ss[1];
+  presetSelSatMul    = ss[2];
+
+  /* B&W pass state — disabled for colour stocks, active for B&W presets */
+  const bp = p.bwPass || null;
+  presetBwEnabled = bp ? 1.0 : 0.0;
+  presetLumaMix   = bp ? new Float32Array(bp.lumaMix) : new Float32Array([0.2126, 0.7152, 0.0722]);
+  presetTintRGB   = (bp && bp.tintRGB) ? new Float32Array(bp.tintRGB) : new Float32Array([1.0, 1.0, 1.0]);
+  presetTintAmt   = (bp && bp.tintAmt != null) ? bp.tintAmt : 0.0;
+
+  /* Second grain layer (Delta 3200, Expired 35mm coarse grain) */
+  const g2 = p.grain2 || null;
+  presetGrain2Intensity = g2 ? g2.intensity : 0.0;
+  presetGrain2Size      = g2 ? g2.size : 1.0;
+
+  /* Camera / effect pass — reset all to identity first */
+  presetDistK1        = 0.0;
+  presetSoftBlend     = 0.0;
+  presetSoftSigma     = new Float32Array([0.0, 0.0]);
+  presetFogColor      = new Float32Array([1.0, 1.0, 1.0]);
+  presetFogAmt        = 0.0;
+  presetLeakEdge      = 0.0;
+  presetLeakOpacity   = 0.0;
+  presetLeakWidth     = 0.12;
+  presetLeakColor     = new Float32Array([1.0, 0.63, 0.24]);
+  presetCircularCrop  = 0.0;
+  presetSprocket      = 0.0;
+  presetSprocketBandH = 0.12;
+  presetSprocketCount = 12.0;
+
+  const cp = p.cameraPass || null;
+  if (cp) {
+    if (cp.distK1 != null)      presetDistK1       = cp.distK1;
+    if (cp.softBlend != null)   presetSoftBlend    = cp.softBlend;
+    if (cp.softSigma)           presetSoftSigma    = new Float32Array(cp.softSigma);
+    if (cp.fogColor)            presetFogColor     = new Float32Array(cp.fogColor);
+    if (cp.fogAmt != null)      presetFogAmt       = cp.fogAmt;
+    if (cp.circularCrop != null) presetCircularCrop = cp.circularCrop;
+    if (cp.sprocket != null)    presetSprocket     = cp.sprocket;
+    if (cp.sprocketBandH != null) presetSprocketBandH = cp.sprocketBandH;
+    if (cp.sprocketCount != null) presetSprocketCount = cp.sprocketCount;
+
+    /* Deterministic light leak */
+    if (cp.lightLeak) {
+      const ll = cp.lightLeak;
+      presetLeakEdge    = ll.edge;
+      presetLeakColor   = new Float32Array(ll.color);
+      presetLeakOpacity = Math.random() * (ll.opacityMax - ll.opacityMin) + ll.opacityMin;
+      presetLeakWidth   = Math.random() * (ll.widthMax   - ll.widthMin)   + ll.widthMin;
+    }
+
+    /* Probabilistic light leak (Holga — 40% chance, random edge) */
+    if (cp.lightLeakProb) {
+      const ll = cp.lightLeakProb;
+      if (Math.random() < ll.probability) {
+        presetLeakEdge    = Math.floor(Math.random() * 4) + 1;
+        presetLeakColor   = new Float32Array(ll.color);
+        presetLeakOpacity = Math.random() * (ll.opacityMax - ll.opacityMin) + ll.opacityMin;
+        presetLeakWidth   = ll.width;
+      }
+    }
+
+    /* Per-channel drift (Expired 35mm) — added on top of preset rgbShift */
+    if (cp.channelDrift) {
+      const d = cp.channelDrift;
+      presetRgbShift[0] += (Math.random() * (d[0][1] - d[0][0]) + d[0][0]) / 255;
+      presetRgbShift[1] += (Math.random() * (d[1][1] - d[1][0]) + d[1][0]) / 255;
+      presetRgbShift[2] += (Math.random() * (d[2][1] - d[2][0]) + d[2][0]) / 255;
+    }
+
+    /* Vignette power random variation (Expired 35mm ±10%) */
+    if (cp.vigPowerVariation) {
+      presetVigPower *= 1 + (Math.random() * 2 - 1) * cp.vigPowerVariation;
+    }
+  }
+
+  /* Push preset defaults onto the adjustment sliders.
+     Each dispatchEvent triggers wireSlider → updates GPU uniforms → scheduleRender */
+  setSlider('grain',      33);           /* slider 33 = 1× natural grain for every stock */
+  setSlider('vignette',   p.vigSlider);
+  setSlider('saturation', p.satSlider);
+  setSlider('halation',   p.halSlider);
+  setSlider('fade',       0);
+  setSlider('colortemp',  0);
+
+  document.getElementById('footer-stock').textContent = p.name;
+  grainSeed = Math.random() * 999;
+  scheduleRender();
+}
+
+/* ─── Filter-item click: apply preset (Color Negative) or just highlight (others) ─── */
 document.querySelectorAll('.filter-item').forEach(item => {
   item.addEventListener('click', () => {
     document.querySelectorAll('.filter-item').forEach(f => f.classList.remove('active'));
     item.classList.add('active');
-    const name = item.querySelector('.fi-name').textContent;
-    document.getElementById('footer-stock').textContent = name;
+    const key = item.dataset.filter;
+    if (PRESETS[key]) {
+      applyPreset(key);
+    } else {
+      /* Placeholder stock — update footer label only */
+      document.getElementById('footer-stock').textContent =
+        item.querySelector('.fi-name').textContent;
+    }
   });
 });
 
@@ -917,6 +2467,16 @@ document.querySelectorAll('.adj-reset').forEach(btn => {
   });
 });
 
+/* Global "Reset to preset defaults" button */
+document.getElementById('btn-reset-all').addEventListener('click', () => {
+  if (currentPresetKey) applyPreset(currentPresetKey);
+});
+
+/* Hints toggle — adds/removes body.hints-on class */
+document.getElementById('hints-toggle').addEventListener('click', () => {
+  document.body.classList.toggle('hints-on');
+});
+
 /* ═══════════════════════════════════════════════════════════════
    A/B SLIDER INTERACTION  (mouse + touch on the WebGL canvas)
 ═══════════════════════════════════════════════════════════════ */
@@ -937,19 +2497,35 @@ function nearLine(x) {
 
 glCanvas.addEventListener('mousedown', e => {
   const {x, y} = canvasXY(e);
-  if (nearHandle(x, y) || nearLine(x)) dragging = true;
+  if (nearHandle(x, y) || nearLine(x)) {
+    dragging = true;
+  } else if (zoomLevel > 1.001) {
+    panning  = true;
+    panStart = { cx: e.clientX, cy: e.clientY, px: panX, py: panY };
+    glCanvas.style.cursor = 'grab';
+  }
 });
 glCanvas.addEventListener('mousemove', e => {
   const {x, y} = canvasXY(e);
   if (dragging) {
     sliderPos = Math.max(0.01, Math.min(0.99, x / glCanvas.width));
     scheduleRender();
+  } else if (panning && panStart) {
+    const r  = glCanvas.getBoundingClientRect();
+    const dx = (e.clientX - panStart.cx) / r.width;
+    const dy = (e.clientY - panStart.cy) / r.height;
+    const hw = 0.5 / zoomLevel;
+    panX = Math.max(hw, Math.min(1 - hw, panStart.px - dx / zoomLevel));
+    panY = Math.max(hw, Math.min(1 - hw, panStart.py + dy / zoomLevel));
+    scheduleRender();
   } else {
-    glCanvas.style.cursor = (nearHandle(x, y) || nearLine(x)) ? 'col-resize' : 'default';
+    if (nearHandle(x, y) || nearLine(x)) glCanvas.style.cursor = 'col-resize';
+    else if (zoomLevel > 1.001) glCanvas.style.cursor = 'move';
+    else glCanvas.style.cursor = 'default';
   }
 });
-glCanvas.addEventListener('mouseup',    () => { dragging = false; });
-glCanvas.addEventListener('mouseleave', () => { dragging = false; });
+glCanvas.addEventListener('mouseup',    () => { dragging = false; panning = false; panStart = null; });
+glCanvas.addEventListener('mouseleave', () => { dragging = false; panning = false; panStart = null; });
 
 glCanvas.addEventListener('touchstart', e => {
   e.preventDefault();
@@ -982,56 +2558,627 @@ new ResizeObserver(() => {
 }).observe(canvasWrap);
 
 /* ═══════════════════════════════════════════════════════════════
-   EXPORT — full native-resolution JPEG
+   ZOOM — scroll-wheel zoom, pan, fit button, zoom badge
 ═══════════════════════════════════════════════════════════════ */
 
-btnExport.addEventListener('click', () => {
+function updateZoomUI() {
+  const zb  = document.getElementById('zoom-badge');
+  const fbz = document.getElementById('btn-fit-zoom');
+  const zoomed = zoomLevel > 1.01;
+  if (zb)  { zb.textContent  = Math.round(zoomLevel * 100) + '%'; zb.classList.toggle('visible', zoomed); }
+  if (fbz) fbz.classList.toggle('visible', zoomed);
+}
+
+glCanvas.addEventListener('wheel', e => {
   if (!sourceImg) return;
+  e.preventDefault();
+  const factor  = e.deltaY < 0 ? 1.14 : 1 / 1.14;
+  const newZoom = Math.max(1.0, Math.min(8.0, zoomLevel * factor));
+  if (Math.abs(newZoom - zoomLevel) < 0.001) return;
+
+  /* Anchor zoom at cursor position in image-UV space */
+  const r    = glCanvas.getBoundingClientRect();
+  const cx   = (e.clientX - r.left) / r.width;            /* canvas UV x */
+  const cy   = 1 - (e.clientY - r.top) / r.height;        /* WebGL UV y  */
+  const _uv  = effectiveUV();
+  const imgX = (_uv.sx > 0) ? (cx - _uv.ox) / _uv.sx : 0.5;
+  const imgY = (_uv.sy > 0) ? (cy - _uv.oy) / _uv.sy : 0.5;
+
+  const newSx = imgUV.sx / newZoom, newSy = imgUV.sy / newZoom;
+  const hw    = 0.5 / newZoom;
+  panX = Math.max(hw, Math.min(1 - hw, (cx - imgX * newSx - imgUV.ox) / imgUV.sx + hw));
+  panY = Math.max(hw, Math.min(1 - hw, (cy - imgY * newSy - imgUV.oy) / imgUV.sy + hw));
+  zoomLevel = newZoom;
+  updateZoomUI();
+  scheduleRender();
+}, { passive: false });
+
+document.getElementById('btn-fit-zoom').addEventListener('click', () => {
+  zoomLevel = 1.0; panX = 0.5; panY = 0.5;
+  updateZoomUI();
+  scheduleRender();
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   KEYBOARD — left/right arrows cycle filters
+═══════════════════════════════════════════════════════════════ */
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const items = Array.from(document.querySelectorAll('.filter-item'));
+  if (!items.length) return;
+  const idx  = items.findIndex(i => i.classList.contains('active'));
+  const next = (idx < 0 ? 0 : idx + (e.key === 'ArrowRight' ? 1 : -1) + items.length) % items.length;
+  items[next].click();
+  items[next].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+  e.preventDefault();
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SURPRISE ME — random filter with ±15% slider variation
+═══════════════════════════════════════════════════════════════ */
+
+document.getElementById('btn-surprise').addEventListener('click', () => {
+  const keys = Object.keys(PRESETS);
+  const key  = keys[Math.floor(Math.random() * keys.length)];
+  applyPreset(key);
+  document.querySelectorAll('.filter-item').forEach(f => {
+    f.classList.toggle('active', f.dataset.filter === key);
+  });
+  const active = document.querySelector('.filter-item.active');
+  if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+
+  /* ±15% variation on each slider */
+  ['grain', 'vignette', 'saturation', 'halation'].forEach(name => {
+    const s = document.getElementById('s-' + name);
+    if (!s) return;
+    const base  = +s.value;
+    const range = (+s.max - +s.min) * 0.15;
+    setSlider(name, Math.round(Math.max(+s.min, Math.min(+s.max, base + (Math.random() * 2 - 1) * range))));
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE — bottom-sheet adjust panel
+═══════════════════════════════════════════════════════════════ */
+
+const rightPanel = document.querySelector('.right-panel');
+
+document.getElementById('btn-adjust-mobile').addEventListener('click', () => {
+  rightPanel.classList.toggle('mobile-open');
+});
+
+/* Tap the panel header (drag handle area) to close on mobile */
+rightPanel.querySelector('.panel-header').addEventListener('click', () => {
+  if (window.innerWidth <= 768) rightPanel.classList.remove('mobile-open');
+});
+
+/* Close panel when tapping canvas on mobile */
+glCanvas.addEventListener('click', () => {
+  if (window.innerWidth <= 768) rightPanel.classList.remove('mobile-open');
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   EXPORT — full native-resolution JPEG / PNG
+═══════════════════════════════════════════════════════════════ */
+
+document.getElementById('btn-export-trigger').addEventListener('click', () => {
+  if (!sourceImg) return;
+
+  const fmt    = document.getElementById('export-fmt').value;
+  const isJpeg = fmt !== 'png';
+  const mime   = isJpeg ? 'image/jpeg' : 'image/png';
+  const qual   = isJpeg ? 0.90 : undefined;
+  const ext    = isJpeg ? 'jpg' : 'png';
 
   const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
   let ew = sourceImg.naturalWidth, eh = sourceImg.naturalHeight;
-
-  /* Clamp to GPU max texture size while preserving aspect ratio */
   if (ew > maxTex || eh > maxTex) {
     const scale = maxTex / Math.max(ew, eh);
     ew = Math.floor(ew * scale);
     eh = Math.floor(eh * scale);
   }
 
-  /* Save display state */
   const dw = glCanvas.width, dh = glCanvas.height;
-  const savedUV = { ...imgUV };
-
-  /* Resize canvas to export dimensions */
-  glCanvas.width  = ew;
-  glCanvas.height = eh;
-
-  /* At native image size, image fills the canvas exactly — no letterbox */
-  imgUV = { ox: 0, oy: 0, sx: 1, sy: 1 };
+  glCanvas.width  = ew;  glCanvas.height = eh;
   ensureFBOs(ew, eh);
-
-  /* Render with sliderPos = -1 → composite shows full processed image */
-  renderPipeline(-1.0);
+  renderPipeline(-1.0, { ox:0, oy:0, sx:1, sy:1 });
   gl.finish();
 
-  const dataURL = glCanvas.toDataURL('image/jpeg', 0.95);
+  const dataURL = glCanvas.toDataURL(mime, qual);
 
-  /* Restore display dimensions */
-  glCanvas.width  = dw;
-  glCanvas.height = dh;
-  ol.width        = dw;
-  ol.height       = dh;
-  imgUV = savedUV;
+  glCanvas.width  = dw;  glCanvas.height = dh;
+  ol.width        = dw;  ol.height       = dh;
   ensureFBOs(dw, dh);
   renderPipeline(sliderPos);
   drawOverlay();
 
-  /* Trigger browser download */
-  const a    = document.createElement('a');
-  a.href     = dataURL;
-  a.download = 'relens-export.jpg';
-  a.click();
+  const a = document.createElement('a');
+  a.href = dataURL; a.download = `relens-export.${ext}`; a.click();
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   WELCOME PAGE
+═══════════════════════════════════════════════════════════════ */
+(function () {
+  const welcome = document.getElementById('welcome');
+  const wCanvas = document.getElementById('welcome-grain');
+  const wCtx    = wCanvas.getContext('2d');
+  const SCALE   = 4;   /* grain cell size in px — 4×4 feels like 35mm */
+  let wRAF      = null;
+  let wSmall    = null;
+  let wSmallCtx = null;
+  let wBuf      = null;
+  let wTick     = 0;
+
+  function initGrain() {
+    wCanvas.width  = window.innerWidth;
+    wCanvas.height = window.innerHeight;
+    const sw = Math.ceil(wCanvas.width  / SCALE);
+    const sh = Math.ceil(wCanvas.height / SCALE);
+    wSmall        = document.createElement('canvas');
+    wSmall.width  = sw;
+    wSmall.height = sh;
+    wSmallCtx     = wSmall.getContext('2d');
+    wBuf          = wSmallCtx.createImageData(sw, sh);
+  }
+
+  function tickGrain() {
+    wTick++;
+    if (wTick % 2 === 0) {   /* paint at ~15 fps; rAF fires at ~30 on most screens */
+      const d = wBuf.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const v    = (Math.random() * 255) | 0;
+        d[i]       = v;
+        d[i + 1]   = v;
+        d[i + 2]   = v;
+        d[i + 3]   = 255;
+      }
+      wSmallCtx.putImageData(wBuf, 0, 0);
+      wCtx.imageSmoothingEnabled = false;
+      wCtx.drawImage(wSmall, 0, 0, wCanvas.width, wCanvas.height);
+    }
+    wRAF = requestAnimationFrame(tickGrain);
+  }
+
+  function showWelcome() {
+    welcome.classList.remove('hidden', 'exiting');
+    initGrain();
+    if (!wRAF) wRAF = requestAnimationFrame(tickGrain);
+  }
+
+  function hideWelcome(cb) {
+    welcome.classList.add('exiting');
+    setTimeout(function () {
+      welcome.classList.add('hidden');
+      cancelAnimationFrame(wRAF);
+      wRAF = null;
+      if (cb) cb();
+    }, 700);
+  }
+
+  /* First-visit gate */
+  if (!localStorage.getItem('relens_visited')) {
+    showWelcome();
+  } else {
+    welcome.classList.add('hidden');
+  }
+
+  document.getElementById('btn-start').addEventListener('click', function () {
+    localStorage.setItem('relens_visited', '1');
+    hideWelcome(function () { document.getElementById('file-input').click(); });
+  });
+
+  document.getElementById('btn-welcome-gallery').addEventListener('click', function () {
+    localStorage.setItem('relens_visited', '1');
+    hideWelcome(function () { if (typeof showGallery === 'function') showGallery(); });
+  });
+
+  document.getElementById('btn-home').addEventListener('click', function () {
+    showWelcome();
+  });
+
+  window.addEventListener('resize', function () {
+    if (!welcome.classList.contains('hidden')) initGrain();
+  });
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   GALLERY — IndexedDB · navigation · rendering
+═══════════════════════════════════════════════════════════════ */
+
+/* ── IndexedDB ── */
+
+const DB_NAME    = 'relens_photos';
+const DB_VERSION = 1;
+let   _idb       = null;
+
+function openIDB() {
+  if (_idb) return Promise.resolve(_idb);
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('photos'))
+        d.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
+    };
+    req.onsuccess = e => { _idb = e.target.result; resolve(_idb); };
+    req.onerror   = e => reject(e.target.error);
+  });
+}
+
+function idbAdd(record) {
+  return openIDB().then(d => new Promise((resolve, reject) => {
+    const req = d.transaction('photos','readwrite').objectStore('photos').add(record);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e.target.error);
+  }));
+}
+
+function idbGetAll() {
+  return openIDB().then(d => new Promise((resolve, reject) => {
+    const req = d.transaction('photos','readonly').objectStore('photos').getAll();
+    req.onsuccess = e => resolve([...e.target.result].reverse());
+    req.onerror   = e => reject(e.target.error);
+  }));
+}
+
+function idbGetOne(id) {
+  return openIDB().then(d => new Promise((resolve, reject) => {
+    const req = d.transaction('photos','readonly').objectStore('photos').get(id);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e.target.error);
+  }));
+}
+
+function idbDelete(id) {
+  return openIDB().then(d => new Promise((resolve, reject) => {
+    const req = d.transaction('photos','readwrite').objectStore('photos').delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror   = e => reject(e.target.error);
+  }));
+}
+
+/* ── Full-resolution render → Blob ── */
+
+function renderToBlob() {
+  if (!sourceImg) return Promise.resolve(null);
+  const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  let ew = sourceImg.naturalWidth, eh = sourceImg.naturalHeight;
+  if (ew > maxTex || eh > maxTex) {
+    const s = maxTex / Math.max(ew, eh);
+    ew = Math.floor(ew * s); eh = Math.floor(eh * s);
+  }
+  const dw = glCanvas.width, dh = glCanvas.height;
+  glCanvas.width = ew; glCanvas.height = eh;
+  ensureFBOs(ew, eh);
+  renderPipeline(-1.0, { ox:0, oy:0, sx:1, sy:1 });
+  gl.finish();
+  return new Promise(resolve => {
+    glCanvas.toBlob(blob => {
+      glCanvas.width  = dw; glCanvas.height = dh;
+      ol.width        = dw; ol.height       = dh;
+      ensureFBOs(dw, dh);
+      renderPipeline(sliderPos);
+      drawOverlay();
+      resolve(blob);
+    }, 'image/jpeg', 0.95);
+  });
+}
+
+/* ── Save to My Photos ── */
+
+const btnSavePhotos = document.getElementById('btn-save-photos');
+
+btnSavePhotos.addEventListener('click', async () => {
+  if (!sourceImg) return;
+  btnSavePhotos.disabled    = true;
+  btnSavePhotos.textContent = 'Saving…';
+  try {
+    const blob = await renderToBlob();
+    await idbAdd({
+      imageBlob:        blob,
+      originalBlob:     currentOriginalBlob,
+      filterName:       (PRESETS[currentPresetKey] || {}).name || currentPresetKey,
+      filterKey:        currentPresetKey,
+      sliderValues: {
+        grain:      +document.getElementById('s-grain').value,
+        vignette:   +document.getElementById('s-vignette').value,
+        fade:       +document.getElementById('s-fade').value,
+        colortemp:  +document.getElementById('s-colortemp').value,
+        saturation: +document.getElementById('s-saturation').value,
+        halation:   +document.getElementById('s-halation').value,
+      },
+      originalFilename: currentFilename,
+      dateSaved:        Date.now(),
+    });
+    btnSavePhotos.textContent = '✓ Saved';
+    setTimeout(() => {
+      btnSavePhotos.disabled    = false;
+      btnSavePhotos.textContent = '↑ Save to My Photos';
+    }, 1800);
+  } catch (err) {
+    console.error('[ReLens save]', err);
+    btnSavePhotos.disabled    = false;
+    btnSavePhotos.textContent = '↑ Save to My Photos';
+  }
+});
+
+/* ── Navigation ── */
+
+const _galleryPage = document.getElementById('gallery-page');
+const _appBody     = document.querySelector('.app-body');
+
+function showGallery() {
+  document.body.classList.remove('page-editor');
+  document.body.classList.add('page-gallery');
+  _appBody.style.display           = 'none';
+  _galleryPage.style.display       = 'flex';
+  _galleryPage.style.flexDirection = 'column';
+  _galleryPage.style.flex          = '1';
+  _galleryPage.style.overflow      = 'hidden';
+  renderGallery();
+}
+
+function showEditor() {
+  document.body.classList.remove('page-gallery');
+  document.body.classList.add('page-editor');
+  _galleryPage.style.display = 'none';
+  _appBody.style.display     = '';
+  if (selectMode) exitSelectMode();
+}
+
+document.getElementById('btn-my-photos').addEventListener('click', showGallery);
+
+document.getElementById('btn-new-photo').addEventListener('click', () => {
+  showEditor();
+  sourceImg = null; currentOriginalBlob = null; currentFilename = 'photo.jpg';
+  uploadZone.style.display   = '';
+  canvasWrap.classList.remove('visible');
+  btnExport.style.display    = 'none';
+  btnSavePhotos.disabled     = true;
+});
+
+document.querySelector('.logo').addEventListener('click', showEditor);
+
+/* ── Date formatting ── */
+
+function fmtDate(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
+       + ' · '
+       + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+/* ── Select mode ── */
+
+let selectMode  = false;
+let selectedIds = new Set();
+
+function enterSelectMode() {
+  selectMode = true;
+  document.body.classList.add('select-mode');
+  const b = document.getElementById('btn-select');
+  b.textContent = 'Done'; b.classList.add('btn-select-active');
+}
+
+function exitSelectMode() {
+  selectMode = false; selectedIds.clear();
+  document.body.classList.remove('select-mode');
+  const b = document.getElementById('btn-select');
+  b.textContent = 'Select'; b.classList.remove('btn-select-active');
+  document.querySelectorAll('.gallery-card.selected').forEach(c  => c.classList.remove('selected'));
+  document.querySelectorAll('.gallery-card-cb.checked').forEach(c => c.classList.remove('checked'));
+  updateBatchBar();
+}
+
+document.getElementById('btn-select').addEventListener('click', () => {
+  if (selectMode) exitSelectMode(); else enterSelectMode();
+});
+
+function toggleSelect(id, card, cb) {
+  if (selectedIds.has(id)) {
+    selectedIds.delete(id); card.classList.remove('selected'); cb.classList.remove('checked');
+  } else {
+    selectedIds.add(id);    card.classList.add('selected');    cb.classList.add('checked');
+  }
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const n = selectedIds.size;
+  document.getElementById('batch-count').textContent =
+    n === 0 ? 'No items selected' : n + ' photo' + (n > 1 ? 's' : '') + ' selected';
+  document.getElementById('btn-batch-dl').disabled     = n === 0;
+  document.getElementById('btn-batch-delete').disabled = n === 0;
+}
+
+/* ── Single-photo actions ── */
+
+function downloadPhoto(photo) {
+  const url  = URL.createObjectURL(photo.imageBlob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'relens-' + (photo.filterName||'photo').replace(/\s+/g,'-').toLowerCase() + '.jpg';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+async function deletePhoto(id) {
+  if (!confirm('Delete this photo? This cannot be undone.')) return;
+  await idbDelete(id);
+  renderGallery();
+}
+
+async function editPhoto(id) {
+  const photo = await idbGetOne(id);
+  if (!photo) return;
+  showEditor();
+  const srcBlob = photo.originalBlob || photo.imageBlob;
+  const url     = URL.createObjectURL(srcBlob);
+  const img     = new Image();
+  img.onload = () => {
+    applyPreset(photo.filterKey);
+    const sv = photo.sliderValues || {};
+    if (sv.grain      != null) setSlider('grain',      sv.grain);
+    if (sv.vignette   != null) setSlider('vignette',   sv.vignette);
+    if (sv.fade       != null) setSlider('fade',        sv.fade);
+    if (sv.colortemp  != null) setSlider('colortemp',  sv.colortemp);
+    if (sv.saturation != null) setSlider('saturation', sv.saturation);
+    if (sv.halation   != null) setSlider('halation',   sv.halation);
+    document.querySelectorAll('.filter-item').forEach(f => {
+      f.classList.toggle('active', f.dataset.filter === photo.filterKey);
+    });
+    currentFilename     = photo.originalFilename || 'relens-edit.jpg';
+    currentOriginalBlob = srcBlob;
+    onImageLoaded(img);
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => URL.revokeObjectURL(url);
+  img.src = url;
+}
+
+/* ── Batch actions ── */
+
+document.getElementById('btn-batch-dl').addEventListener('click', async () => {
+  const photos = galleryPhotos.filter(p => selectedIds.has(p.id));
+  if (!photos.length) return;
+  if (typeof JSZip === 'undefined') {
+    photos.forEach(p => downloadPhoto(p)); return;
+  }
+  const zip = new JSZip();
+  photos.forEach((p, i) => {
+    zip.file('relens-' + (p.filterName||'photo').replace(/\s+/g,'-').toLowerCase()
+             + '-' + (i+1) + '.jpg', p.imageBlob);
+  });
+  const blob = await zip.generateAsync({ type:'blob', compression:'STORE' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'relens-photos.zip'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('btn-batch-delete').addEventListener('click', async () => {
+  const n = selectedIds.size;
+  if (!confirm('Delete ' + n + ' photo' + (n>1?'s':'') + '? This cannot be undone.')) return;
+  const ids = [...selectedIds];
+  exitSelectMode();
+  for (const id of ids) await idbDelete(id);
+  renderGallery();
+});
+
+/* ── Gallery rendering ── */
+
+let galleryPhotos  = [];
+let galleryObjURLs = [];
+
+function revokeGalleryURLs() {
+  galleryObjURLs.forEach(u => URL.revokeObjectURL(u));
+  galleryObjURLs = [];
+}
+
+async function renderGallery() {
+  revokeGalleryURLs();
+  const scroll = document.getElementById('gallery-scroll');
+  scroll.innerHTML = '<div style="font-size:9px;letter-spacing:.22em;color:var(--text-dim);padding:32px 24px;text-transform:uppercase">Loading…</div>';
+
+  galleryPhotos = await idbGetAll();
+
+  scroll.innerHTML = '';
+
+  if (galleryPhotos.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'gallery-empty';
+    empty.innerHTML =
+      '<svg class="gallery-empty-icon" viewBox="0 0 52 52" fill="none">'
+      + '<rect x="2" y="12" width="48" height="32" rx="3" stroke="currentColor" stroke-width="1.5"/>'
+      + '<path d="M17 12V10a2 2 0 012-2h14a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"/>'
+      + '<circle cx="26" cy="28" r="9" stroke="currentColor" stroke-width="1.5"/>'
+      + '<circle cx="26" cy="28" r="5" stroke="currentColor" stroke-width="1.5"/>'
+      + '</svg>'
+      + '<div class="gallery-empty-heading">No photos yet</div>'
+      + '<div class="gallery-empty-sub">Develop a photo in the editor, then save it to your collection</div>';
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-primary'; btn.style.marginTop = '8px';
+    btn.textContent = '+ New Photo';
+    btn.addEventListener('click', () => {
+      showEditor();
+      sourceImg = null; currentOriginalBlob = null;
+      uploadZone.style.display = ''; canvasWrap.classList.remove('visible');
+      btnExport.style.display = 'none'; btnSavePhotos.disabled = true;
+    });
+    empty.appendChild(btn);
+    scroll.appendChild(empty);
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'gallery-grid';
+
+  galleryPhotos.forEach(photo => {
+    const thumbURL = URL.createObjectURL(photo.imageBlob);
+    galleryObjURLs.push(thumbURL);
+
+    const card = document.createElement('div');
+    card.className  = 'gallery-card';
+    card.dataset.id = photo.id;
+
+    const cb = document.createElement('div');
+    cb.className = 'gallery-card-cb';
+
+    const img = document.createElement('img');
+    img.className = 'gallery-card-thumb'; img.src = thumbURL;
+    img.alt = photo.filterName; img.loading = 'lazy';
+    img.decoding = 'async';
+
+    const info = document.createElement('div');
+    info.className = 'gallery-card-info';
+    info.innerHTML = '<div class="gallery-card-filter">' + (photo.filterName || '') + '</div>'
+                   + '<div class="gallery-card-date">'   + fmtDate(photo.dateSaved)   + '</div>';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'gallery-card-overlay';
+
+    function mkBtn(title, svg, extra) {
+      const b = document.createElement('button');
+      b.className = 'gallery-card-btn' + (extra ? ' ' + extra : '');
+      b.title = title;
+      b.innerHTML = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none">' + svg + '</svg>';
+      return b;
+    }
+
+    const bEdit = mkBtn('Edit',
+      '<path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>');
+    const bDl   = mkBtn('Download',
+      '<path d="M8 3v7m0 0l-3-3m3 3l3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '<path d="M3 12h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>');
+    const bDel  = mkBtn('Delete',
+      '<path d="M3 4h10M6 4V3h4v1M5 4v8h6V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>',
+      'btn-card-delete');
+
+    bEdit.addEventListener('click', e => { e.stopPropagation(); editPhoto(photo.id); });
+    bDl.addEventListener('click',   e => { e.stopPropagation(); downloadPhoto(photo); });
+    bDel.addEventListener('click',  e => { e.stopPropagation(); deletePhoto(photo.id); });
+
+    overlay.appendChild(bEdit); overlay.appendChild(bDl); overlay.appendChild(bDel);
+
+    cb.addEventListener('click', e => { e.stopPropagation(); toggleSelect(photo.id, card, cb); });
+    card.addEventListener('click', () => { if (selectMode) toggleSelect(photo.id, card, cb); });
+
+    card.appendChild(cb); card.appendChild(img);
+    card.appendChild(info); card.appendChild(overlay);
+    grid.appendChild(card);
+  });
+
+  scroll.appendChild(grid);
+  updateBatchBar();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INITIALISE — apply default preset after all event handlers are registered
+═══════════════════════════════════════════════════════════════ */
+applyPreset('portra400');
 </script>
 </body>
 </html>
