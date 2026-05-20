@@ -6,10 +6,20 @@
   <title>ReLens</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=VT323&family=DotGothic16&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* iOS: remove tap flash, eliminate 300ms click delay on interactive elements */
+    * { -webkit-tap-highlight-color: transparent; }
+    button, .btn, .filter-item, .gallery-card, .gallery-card-btn,
+    .upload-zone, .upload-cta, .hints-toggle, .adj-reset, .btn-reset-all,
+    .logo, .btn-save-photos, .btn-share, .btn-surprise, .welcome-actions .btn,
+    .panel-tab, .toggle-btn, .pp-btn, .vigshape-btn,
+    .leak-edge-btn, .leak-color-btn, .crop-apply {
+      touch-action: manipulation;
+    }
 
     :root {
       --bg:          #0c0a08;
@@ -39,11 +49,11 @@
       flex-direction: column;
     }
 
-    body::after {
-      content: '';
+    #film-grain {
       position: fixed;
       inset: 0;
-      pointer-events: none;
+      pointer-events: none !important;
+      user-select: none;
       z-index: 9999;
       opacity: 0.042;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23g)'/%3E%3C/svg%3E");
@@ -288,6 +298,119 @@
     }
     .slider-info:hover .tip { display: block; }
 
+    /* ── PANEL TABS ── */
+    .panel-tabs { display:flex; gap:2px; background:rgba(0,0,0,0.3); border-radius:3px; padding:2px; flex:1; margin-right:10px; }
+    .panel-tab {
+      flex:1; padding:4px 0; font-size:8.5px; letter-spacing:0.14em; text-transform:uppercase;
+      background:transparent; border:none; border-radius:2px; color:var(--text-dim); cursor:pointer;
+      font-family:'Space Mono',monospace; transition:background 0.15s, color 0.15s;
+    }
+    .panel-tab.active { background:var(--amber); color:#0c0a08; }
+    .panel-tab:not(.active):hover { color:var(--amber-light); }
+
+    /* ── TOGGLE ROWS (vignette shape, date stamp) ── */
+    .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:11px 17px; border-bottom:1px solid var(--border-soft); }
+    .toggle-label { font-size:10px; letter-spacing:0.06em; color:var(--text-mid); font-family:'Space Mono',monospace; }
+    .toggle-btns { display:flex; gap:3px; }
+    .toggle-btn {
+      padding:3px 9px; font-size:8px; letter-spacing:0.12em; text-transform:uppercase;
+      background:transparent; border:1px solid var(--border-soft); color:var(--text-dim);
+      cursor:pointer; border-radius:2px; font-family:'Space Mono',monospace;
+      transition:background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .toggle-btn.active { background:var(--amber-dim); border-color:var(--amber); color:var(--amber-light); }
+    .toggle-btn:hover:not(.active) { border-color:var(--amber); color:var(--amber-light); }
+
+    /* ── PUSH/PULL SELECTOR ── */
+    .pp-row { display:flex; gap:3px; }
+    .pp-btn {
+      flex:1; text-align:center; padding:4px 0; font-size:9px; letter-spacing:0.05em;
+      background:transparent; border:1px solid var(--border-soft); color:var(--text-dim);
+      cursor:pointer; border-radius:2px; font-family:'Space Mono',monospace;
+      transition:background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .pp-btn.active { background:var(--amber-dim); border-color:var(--amber); color:var(--amber-light); }
+    .pp-btn:hover:not(.active) { border-color:var(--amber); color:var(--amber-light); }
+
+    /* ── MOOD TILES (Discover / Variations Grid) ── */
+    .mood-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 12px 12px 14px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .mood-tile {
+      cursor: pointer; background: #16110c;
+      border: 1px solid transparent; border-radius: 4px;
+      overflow: hidden; transition: border-color 0.15s, transform 0.15s;
+      position: relative;
+    }
+    .mood-tile:hover { border-color: #3a2c1a; transform: translateY(-1px); }
+    .mood-tile.active { border-color: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+    .mood-thumb-wrap {
+      position: relative; width: 100%;
+      aspect-ratio: 1 / 1; background: linear-gradient(135deg, #1a1410, #0d0a07);
+      overflow: hidden;
+    }
+    .mood-thumb {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .mood-thumb.loaded { opacity: 1; }
+    .mood-emoji {
+      position: absolute; top: 5px; left: 6px;
+      font-size: 17px; line-height: 1; pointer-events: none;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.85);
+    }
+    .mood-name {
+      font-size: 10px; text-align: center;
+      padding: 6px 0 7px; color: var(--text-bright);
+      letter-spacing: 0.18em; text-transform: uppercase;
+      font-family: 'Space Mono', monospace;
+    }
+    .mood-tile.active .mood-name { color: var(--amber); }
+
+    /* ── SIMPLE MODE — wider panel, only moods/recipes, hide pro right panel ── */
+    body.simple-mode .right-panel { display: none; }
+    body.simple-mode .left-panel  { width: 280px; }
+    body.simple-mode .filter-group:not(#moods-group):not(#recipes-group) { display: none; }
+    body.simple-mode .btn-surprise { display: none; }
+    body.simple-mode #moods-group .mood-emoji { font-size: 19px; top: 7px; left: 8px; }
+    body.simple-mode #moods-group .mood-name  { font-size: 11px; padding: 7px 0 9px; }
+    .btn-tweak.is-on {
+      background: var(--amber-dim) !important;
+      border-color: var(--amber) !important;
+      color: var(--amber-light) !important;
+    }
+
+    @media (max-width: 768px) {
+      /* Mobile: gear button handles panel reveal — Tweak hidden, Quick-Save hidden */
+      .btn-tweak,
+      #btn-quick-save { display: none !important; }
+      /* Keep the right-panel mobile bottom-sheet working even in simple mode */
+      body.simple-mode .right-panel { display: flex; }
+      body.simple-mode .left-panel  { width: 100%; }
+      /* Mood grid: horizontal scroll strip in the row-flex filter-scroll */
+      .mood-grid {
+        display: flex;
+        gap: 7px; padding: 6px 8px;
+        border-bottom: none;
+        border-right: 1px solid var(--border-soft);
+        flex-shrink: 0;
+      }
+      .mood-tile { width: 64px; flex-shrink: 0; }
+      .mood-name { font-size: 8.5px; padding: 4px 0; letter-spacing: 0.1em; }
+      .mood-emoji { font-size: 13px; top: 3px; left: 4px; }
+      body.simple-mode #moods-group .mood-emoji { font-size: 13px; top: 3px; left: 4px; }
+      body.simple-mode #moods-group .mood-name  { font-size: 8.5px; padding: 4px 0; }
+    }
+
+    /* ── FLASH PRESET PANEL SWAP — hide Halation, show Flash Position H/V ── */
+    .flash-only { display: none; }
+    body.flash-preset .flash-only  { display: block; }
+    body.flash-preset .halation-grp { display: none; }
+
     /* ── RESET ALL BUTTON ── */
     .btn-reset-all {
       background: none; border: 1px solid var(--border-soft);
@@ -297,6 +420,47 @@
       transition: color 0.15s, border-color 0.15s;
     }
     .btn-reset-all:hover { color: var(--amber); border-color: var(--amber); }
+
+    /* ── CROP TOOLBAR ── */
+    .crop-toolbar {
+      position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+      z-index: 20; display: flex; align-items: center; gap: 10px;
+      background: rgba(12,10,8,0.93); border: 1px solid var(--border);
+      border-radius: 3px; padding: 8px 14px; white-space: nowrap;
+    }
+    .crop-rot-label {
+      font-size: 9px; color: var(--amber); letter-spacing: 0.08em;
+      min-width: 36px; text-align: right; font-family: 'Space Mono', monospace;
+    }
+    .crop-rot-track { width: 100px; }
+    .crop-apply {
+      padding: 5px 12px; font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase;
+      background: var(--amber); color: #0c0a08; border: none; cursor: pointer;
+      font-family: 'Space Mono', monospace; border-radius: 2px; font-weight: 700;
+      transition: background 0.15s;
+    }
+    .crop-apply:hover { background: var(--amber-light); }
+
+    /* ── LEAK EDGE BUTTONS ── */
+    .leak-edge-btns { display: flex; gap: 3px; }
+    .leak-edge-btn {
+      flex:1; text-align:center; padding:4px 0; font-size:8px; letter-spacing:0.06em;
+      background:transparent; border:1px solid var(--border-soft); color:var(--text-dim);
+      cursor:pointer; border-radius:2px; font-family:'Space Mono',monospace;
+      transition:background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .leak-edge-btn.active { background:var(--amber-dim); border-color:var(--amber); color:var(--amber-light); }
+    .leak-edge-btn:hover:not(.active) { border-color:var(--amber); color:var(--amber-light); }
+
+    /* ── LEAK COLOR SWATCHES ── */
+    .leak-color-btns { display:flex; gap:5px; margin-top:9px; }
+    .leak-color-btn {
+      width:20px; height:20px; border-radius:50%; border:2px solid transparent;
+      cursor:pointer; flex-shrink:0;
+      transition:border-color 0.15s, transform 0.12s;
+    }
+    .leak-color-btn.active { border-color:var(--amber-light); transform:scale(1.18); }
+    .leak-color-btn:hover:not(.active) { transform:scale(1.10); }
 
     /* ── WELCOME PAGE ── */
     #welcome {
@@ -313,6 +477,7 @@
       width: 100%; height: 100%;
       opacity: 0.065;
       image-rendering: pixelated;
+      pointer-events: none;
     }
 
     .welcome-inner {
@@ -465,16 +630,20 @@
       max-width: 280px; line-height: 1.8;
     }
 
-    /* ── SAVE BUTTON ── */
-    .btn-save-photos {
+    /* ── SAVE / SHARE BUTTONS ── */
+    .btn-save-photos, .btn-share {
       display: block; width: 100%; margin-top: 12px; padding: 8px;
       background: transparent; border: 1px solid var(--border);
       color: var(--text-dim); font-family: 'Space Mono', monospace;
       font-size: 8.5px; letter-spacing: 0.18em; text-transform: uppercase;
       cursor: pointer; transition: all 0.18s; text-align: center;
     }
-    .btn-save-photos:hover:not(:disabled) { border-color: var(--amber); color: var(--amber); }
-    .btn-save-photos:disabled { opacity: 0.38; cursor: default; }
+    .btn-save-photos:hover:not(:disabled),
+    .btn-share:hover:not(:disabled) { border-color: var(--amber); color: var(--amber); }
+    .btn-save-photos:disabled,
+    .btn-share:disabled { opacity: 0.38; cursor: default; }
+    /* Share button hidden until JS confirms Web Share is available */
+    .btn-share { display: none; }
 
     /* ── SELECT BUTTON ACTIVE ── */
     .btn-select-active { background: var(--amber-dim) !important; border-color: var(--amber) !important; color: var(--amber) !important; }
@@ -650,6 +819,7 @@
   </style>
 </head>
 <body class="page-editor">
+<div id="film-grain" aria-hidden="true"></div>
 
 <!-- WELCOME / LANDING PAGE -->
 <div id="welcome">
@@ -686,6 +856,8 @@
       </select>
       <button class="btn btn-ghost" id="btn-export-trigger">&#8681; Export</button>
     </div>
+    <button class="btn btn-ghost editor-only btn-tweak" id="btn-tweak" title="Open pro adjustments">Tweak</button>
+    <button class="btn btn-ghost editor-only" id="btn-quick-save" title="Save to My Photos" style="display:none">&#8595; Save</button>
     <button class="btn btn-ghost editor-only" id="btn-my-photos">My Photos</button>
     <button class="btn btn-ghost gallery-only" id="btn-select">Select</button>
     <button class="btn btn-primary" id="btn-new-photo">&#43; New Photo</button>
@@ -697,6 +869,25 @@
   <aside class="left-panel">
     <div class="panel-header"><div class="panel-label">Film Stocks</div></div>
     <div class="filter-scroll">
+      <div class="filter-group" id="moods-group">
+        <div class="group-label" style="padding-bottom:3px">Moods</div>
+        <div class="group-subtitle">One-tap looks. Pick the vibe — sliders are optional.</div>
+        <div class="mood-grid" id="mood-grid">
+          <div class="mood-tile" data-mood="soft"><div class="mood-thumb-wrap"><img class="mood-thumb"><span class="mood-emoji">&#10024;</span></div><div class="mood-name">Soft</div></div>
+          <div class="mood-tile" data-mood="golden"><div class="mood-thumb-wrap"><img class="mood-thumb"><span class="mood-emoji">&#127749;</span></div><div class="mood-name">Golden</div></div>
+          <div class="mood-tile" data-mood="moody"><div class="mood-thumb-wrap"><img class="mood-thumb"><span class="mood-emoji">&#127747;</span></div><div class="mood-name">Moody</div></div>
+          <div class="mood-tile" data-mood="vintage"><div class="mood-thumb-wrap"><img class="mood-thumb"><span class="mood-emoji">&#127902;</span></div><div class="mood-name">Vintage</div></div>
+          <div class="mood-tile" data-mood="vibrant"><div class="mood-thumb-wrap"><img class="mood-thumb"><span class="mood-emoji">&#127827;</span></div><div class="mood-name">Vibrant</div></div>
+          <div class="mood-tile" data-mood="cinema"><div class="mood-thumb-wrap"><img class="mood-thumb"><span class="mood-emoji">&#127916;</span></div><div class="mood-name">Cinema</div></div>
+          <div class="mood-tile" data-mood="y2k"><div class="mood-thumb-wrap"><img class="mood-thumb"><span class="mood-emoji">&#128140;</span></div><div class="mood-name">Y2K</div></div>
+          <div class="mood-tile" data-mood="cool"><div class="mood-thumb-wrap"><img class="mood-thumb"><span class="mood-emoji">&#127754;</span></div><div class="mood-name">Cool</div></div>
+        </div>
+      </div>
+      <div class="filter-group" id="recipes-group" style="display:none">
+        <div class="group-label">My Recipes</div>
+        <div class="group-subtitle">Your saved looks. Click to restore; long-press a name to delete.</div>
+        <div id="recipes-list"></div>
+      </div>
       <div class="filter-group">
         <div class="group-label">Color Negative</div>
         <div class="group-subtitle">Standard film stocks. Warm, natural, or vivid.</div>
@@ -708,6 +899,14 @@
         <div class="filter-item" data-filter="cinestill800t"><span class="fi-name">CineStill 800T</span><span class="fi-iso">800</span><span class="fi-hint">City lights glow red-orange. Cinematic.</span></div>
         <div class="filter-item" data-filter="pro400h"><span class="fi-name">Pro 400H</span><span class="fi-iso">400</span><span class="fi-hint">Soft and pastel. Overcast day look.</span></div>
         <div class="filter-item" data-filter="colorplus200"><span class="fi-name">ColorPlus 200</span><span class="fi-iso">200</span><span class="fi-hint">Warm and casual. Budget film character.</span></div>
+      </div>
+      <div class="filter-group">
+        <div class="group-label">Slide / Reversal</div>
+        <div class="group-subtitle">Transparency films — high contrast, rich color, no latitude.</div>
+        <div class="filter-item" data-filter="velvia50"><span class="fi-name">Fuji Velvia 50</span><span class="fi-iso">50</span><span class="fi-hint">Maximum saturation and punch. Landscapes explode.</span></div>
+        <div class="filter-item" data-filter="provia100f"><span class="fi-name">Fuji Provia 100F</span><span class="fi-iso">100</span><span class="fi-hint">Accurate, neutral colors. Fine grain slide.</span></div>
+        <div class="filter-item" data-filter="ektachrome_e100"><span class="fi-name">Ektachrome E100</span><span class="fi-iso">100</span><span class="fi-hint">Cool and clean. Classic blue-sky slide look.</span></div>
+        <div class="filter-item" data-filter="vision3_500t"><span class="fi-name">Vision3 500T</span><span class="fi-iso">500</span><span class="fi-hint">Cinema motion picture. Tungsten-balanced, cinematic shadow.</span></div>
       </div>
       <div class="filter-group">
         <div class="group-label">Black &amp; White</div>
@@ -739,6 +938,13 @@
         <div class="filter-item" data-filter="cam_l35af"><span class="fi-name">Nikon L35AF</span><span class="fi-iso">400</span><span class="fi-hint">Warm Nikkor rendering. The quintessential 80s compact.</span></div>
         <div class="filter-item" data-filter="cam_contax"><span class="fi-name">Contax T2</span><span class="fi-iso">400</span><span class="fi-hint">Zeiss T* glass. Rich, dimensional shadows.</span></div>
         <div class="filter-item" data-filter="cam_fisheye"><span class="fi-name">Fisheye No. 2</span><span class="fi-iso">100</span><span class="fi-hint">Extreme wide-angle warp.</span></div>
+      </div>
+      <div class="filter-group">
+        <div class="group-label">Flash</div>
+        <div class="group-subtitle">On-camera flash looks. Spatial light falloff, blown highlights, dark backgrounds.</div>
+        <div class="filter-item" data-filter="flash_disposable"><span class="fi-name">Disposable Camera</span><span class="fi-iso">400</span><span class="fi-hint">Party photos, wedding tables, Y2K. Warm, blown highlights, dark backgrounds.</span></div>
+        <div class="filter-item" data-filter="flash_y2k"><span class="fi-name">Y2K Night Flash</span><span class="fi-iso">400</span><span class="fi-hint">Nightclub, paparazzi, blown-out subject. Background goes black.</span></div>
+        <div class="filter-item" data-filter="flash_naturalfill"><span class="fi-name">Natural Fill Flash</span><span class="fi-iso">400</span><span class="fi-hint">Soft fill light. Flattens shadows, evens the face. Portrait and wedding look.</span></div>
       </div>
       <div class="filter-group">
         <div class="group-label">Experimental</div>
@@ -777,15 +983,32 @@
       <button class="btn-fit-zoom" id="btn-fit-zoom" title="Fit to screen">&#x26F6;</button>
       <div class="zoom-badge" id="zoom-badge">100%</div>
       <button class="btn btn-ghost" id="btn-adjust-mobile">&#9881; Adjust</button>
+      <!-- Crop toolbar (shown only in crop mode) -->
+      <div class="crop-toolbar" id="crop-toolbar" style="display:none">
+        <button class="toggle-btn" id="btn-crop-reset">Reset</button>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim)">Rotate</span>
+          <input class="adj-slider crop-rot-track" type="range" id="s-croprot" min="-30" max="30" value="0" step="0.5">
+          <span class="crop-rot-label" id="v-croprot">0°</span>
+        </div>
+        <button class="toggle-btn" id="btn-crop-cancel">Cancel</button>
+        <button class="crop-apply" id="btn-crop-apply">Apply</button>
+      </div>
     </div>
   </main>
 
   <aside class="right-panel">
     <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between">
-      <div class="panel-label">Adjustments</div>
+      <div class="panel-tabs">
+        <button class="panel-tab active" data-tab="film">Film</button>
+        <button class="panel-tab" data-tab="edit">Edit</button>
+      </div>
+      <button class="btn-reset-all" id="btn-save-recipe" style="margin-right:4px" title="Save current settings as a recipe">&#9733; Save</button>
       <button class="btn-reset-all" id="btn-reset-all">&#8635; Reset</button>
     </div>
-    <div class="adj-scroll">
+
+    <!-- Film Tab -->
+    <div class="adj-scroll" id="tab-film">
       <div class="adj-group">
         <div class="adj-row">
           <div style="display:flex;align-items:center;gap:5px">
@@ -807,6 +1030,13 @@
         </div>
         <input class="adj-slider" type="range" id="s-vignette" min="0" max="100" value="0">
         <button class="adj-reset" data-target="s-vignette">reset</button>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Vignette Shape</span>
+        <div class="toggle-btns">
+          <button class="vigshape-btn toggle-btn active" data-shape="0">Oval</button>
+          <button class="vigshape-btn toggle-btn" data-shape="1">Rect</button>
+        </div>
       </div>
       <div class="adj-group">
         <div class="adj-row">
@@ -841,7 +1071,7 @@
         <input class="adj-slider" type="range" id="s-saturation" min="-100" max="100" value="0">
         <button class="adj-reset" data-target="s-saturation">reset</button>
       </div>
-      <div class="adj-group">
+      <div class="adj-group halation-grp">
         <div class="adj-row">
           <div style="display:flex;align-items:center;gap:5px">
             <span class="adj-name">Halation</span>
@@ -852,11 +1082,181 @@
         <input class="adj-slider" type="range" id="s-halation" min="0" max="100" value="0">
         <button class="adj-reset" data-target="s-halation">reset</button>
       </div>
+      <div class="adj-group flash-only">
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Flash Position H</span>
+            <span class="slider-info">i<span class="tip">Where the flash light is brightest. Drag to match where your subject is.</span></span>
+          </div>
+          <span class="adj-val" id="v-flashposh">50</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-flashposh" min="0" max="100" value="50">
+      </div>
+      <div class="adj-group flash-only">
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Flash Position V</span>
+            <span class="slider-info">i<span class="tip">Where the flash light is brightest. Drag to match where your subject is.</span></span>
+          </div>
+          <span class="adj-val" id="v-flashposv">48</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-flashposv" min="0" max="100" value="48">
+      </div>
+      <div class="adj-group">
+        <div class="adj-row" style="margin-bottom:9px">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Push / Pull</span>
+            <span class="slider-info">i<span class="tip">Simulates over- (+) or under- (−) developing the film. Push = more contrast &amp; grain. Pull = flatter.</span></span>
+          </div>
+        </div>
+        <div class="pp-row">
+          <button class="pp-btn" data-pp="-2">−2</button>
+          <button class="pp-btn" data-pp="-1">−1</button>
+          <button class="pp-btn active" data-pp="0">0</button>
+          <button class="pp-btn" data-pp="1">+1</button>
+          <button class="pp-btn" data-pp="2">+2</button>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Date Stamp</span>
+        <div class="toggle-btns">
+          <button class="toggle-btn" id="btn-datestamp">Off</button>
+        </div>
+      </div>
+      <div class="adj-group">
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Stamp Size</span>
+            <span class="slider-info">i<span class="tip">Size of the date stamp text. Has no effect when the date stamp is off.</span></span>
+          </div>
+          <span class="adj-val" id="v-stampsize">100</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-stampsize" min="30" max="150" value="100">
+        <button class="adj-reset" data-target="s-stampsize">reset</button>
+      </div>
+      <div class="adj-group">
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Flash</span>
+            <span class="slider-info">i<span class="tip">Camera-flash effect. Dials down a Flash preset, or adds a fill flash to any non-flash preset.</span></span>
+          </div>
+          <span class="adj-val" id="v-flashamt">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-flashamt" min="0" max="100" value="0">
+        <button class="adj-reset" data-target="s-flashamt">reset</button>
+      </div>
+      <!-- Light Leak -->
+      <div class="adj-group">
+        <div class="adj-row" style="margin-bottom:9px">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Light Leak</span>
+            <span class="slider-info">i<span class="tip">Light leaking into the camera from one edge. Screen-blended, overrides preset leak when active.</span></span>
+          </div>
+        </div>
+        <div class="leak-edge-btns">
+          <button class="leak-edge-btn active" data-edge="0">Off</button>
+          <button class="leak-edge-btn" data-edge="1">Left</button>
+          <button class="leak-edge-btn" data-edge="2">Right</button>
+          <button class="leak-edge-btn" data-edge="3">Top</button>
+          <button class="leak-edge-btn" data-edge="4">Bot</button>
+        </div>
+        <div style="margin-top:10px">
+          <div class="adj-row" style="margin-bottom:6px">
+            <span class="adj-name">Intensity</span>
+            <span class="adj-val" id="v-leakintensity">0</span>
+          </div>
+          <input class="adj-slider" type="range" id="s-leakintensity" min="0" max="100" value="0">
+        </div>
+        <div class="leak-color-btns">
+          <button class="leak-color-btn active" data-color="amber" style="background:#ffb830" title="Amber"></button>
+          <button class="leak-color-btn" data-color="orange" style="background:#ff7820" title="Orange"></button>
+          <button class="leak-color-btn" data-color="red" style="background:#e03030" title="Red"></button>
+          <button class="leak-color-btn" data-color="violet" style="background:#9040d0" title="Violet"></button>
+          <button class="leak-color-btn" data-color="blue" style="background:#2060e0" title="Blue"></button>
+        </div>
+      </div>
     </div>
+
+    <!-- Edit Tab -->
+    <div class="adj-scroll" id="tab-edit" style="display:none">
+      <div style="padding:13px 17px 12px;border-bottom:1px solid var(--border-soft);display:flex;gap:6px">
+        <button class="toggle-btn" id="btn-auto" style="flex:1;padding:7px 0;font-size:8px;letter-spacing:0.12em">&#10022; Auto</button>
+        <button class="toggle-btn" id="btn-wb-picker" style="flex:1;padding:7px 0;font-size:8px;letter-spacing:0.12em" title="Click image to neutralize white balance">&#9678; WB</button>
+        <button class="toggle-btn" id="btn-enter-crop" style="flex:1;padding:7px 0;font-size:8px;letter-spacing:0.12em">&#9699; Crop</button>
+      </div>
+      <div class="adj-group">
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Exposure</span>
+            <span class="slider-info">i<span class="tip">Brightens or darkens the overall image (±2 stops).</span></span>
+          </div>
+          <span class="adj-val" id="v-exposure">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-exposure" min="-100" max="100" value="0">
+        <button class="adj-reset" data-target="s-exposure">reset</button>
+      </div>
+      <div class="adj-group">
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Contrast</span>
+            <span class="slider-info">i<span class="tip">Increases or decreases the difference between light and dark.</span></span>
+          </div>
+          <span class="adj-val" id="v-contrast">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-contrast" min="-100" max="100" value="0">
+        <button class="adj-reset" data-target="s-contrast">reset</button>
+      </div>
+      <div class="adj-group">
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Highlights</span>
+            <span class="slider-info">i<span class="tip">Recovers (−) or boosts (+) bright areas of the image.</span></span>
+          </div>
+          <span class="adj-val" id="v-highlights">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-highlights" min="-100" max="100" value="0">
+        <button class="adj-reset" data-target="s-highlights">reset</button>
+      </div>
+      <div class="adj-group">
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Shadows</span>
+            <span class="slider-info">i<span class="tip">Lifts (+) or crushes (−) dark areas of the image.</span></span>
+          </div>
+          <span class="adj-val" id="v-shadows">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-shadows" min="-100" max="100" value="0">
+        <button class="adj-reset" data-target="s-shadows">reset</button>
+      </div>
+      <div class="adj-group">
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Sharpness</span>
+            <span class="slider-info">i<span class="tip">Increases edge detail via unsharp mask.</span></span>
+          </div>
+          <span class="adj-val" id="v-sharpness">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-sharpness" min="0" max="100" value="0">
+        <button class="adj-reset" data-target="s-sharpness">reset</button>
+      </div>
+      <div class="adj-group">
+        <div class="adj-row">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="adj-name">Tint</span>
+            <span class="slider-info">i<span class="tip">Green (+) or Magenta (−) color cast.</span></span>
+          </div>
+          <span class="adj-val" id="v-edittint">0</span>
+        </div>
+        <input class="adj-slider" type="range" id="s-edittint" min="-100" max="100" value="0">
+        <button class="adj-reset" data-target="s-edittint">reset</button>
+      </div>
+    </div>
+
     <div class="panel-footer">
       <p>Stock &nbsp;<span id="footer-stock">Portra 400</span></p>
       <p>Pipeline &nbsp;<span>WebGL · 3-pass</span></p>
       <button class="btn-save-photos editor-only" id="btn-save-photos" disabled>&#8593; Save to My Photos</button>
+      <button class="btn-share editor-only" id="btn-share" disabled>&#8679; Share Photo</button>
     </div>
   </aside>
 
@@ -944,6 +1344,71 @@ const FRAG_MAIN = `
   uniform float u_leakOpacity; /* peak opacity at edge                      */
   uniform float u_leakWidth;   /* fraction of screen covered (0..1)         */
 
+  /* Edit tab adjustments */
+  uniform float u_sharpness;   /* 0..1  unsharp mask strength               */
+  uniform float u_exposure;    /* linear multiplier (1.0 = no change)       */
+  uniform float u_contrast;    /* -1..1 S-curve contrast                    */
+  uniform float u_highlights;  /* -1..1 selective highlight recovery/boost  */
+  uniform float u_shadows;     /* -1..1 selective shadow lift/crush         */
+  uniform float u_editTint;    /* -1..1 green(+) / magenta(-) tint          */
+  uniform float u_pushPull;    /* -2..2 push(+) / pull(-) development sim   */
+
+  /* Crop & Rotate */
+  uniform vec4  u_crop;        /* x1,y1,w,h in image UV (default 0,0,1,1)   */
+  uniform float u_rotation;    /* clockwise rotation in radians              */
+
+  /* Flash photography pipeline — all default to no-op */
+  uniform float u_islStr;          /* 0..1 — ISL falloff strength            */
+  uniform float u_islFalloff;      /* 1..4 — falloff power (exponent)        */
+  uniform float u_falloffScale;    /* inner-distance multiplier              */
+  uniform vec2  u_islCenter;       /* 0..1 — flash centre in UV space        */
+  uniform float u_darkFloor;       /* 0..0.5 — luminance multiplier @ 0      */
+  uniform float u_brightCeiling;   /* 0.8..2.5 — luminance multiplier @ max  */
+  uniform float u_clipThresh;      /* 0..1 — highlight clip threshold (1=off)*/
+  uniform float u_clipHard;        /* 0..1 — 0=soft rolloff, 1=hard clip     */
+  uniform float u_bgDesatThresh;   /* 0..1 — luma threshold for bg desat     */
+  uniform float u_bgDesatStr;      /* 0..1 — desaturation strength            */
+  uniform float u_ambWarmThresh;   /* 0..1 — luma threshold for warm bleed   */
+  uniform float u_ambWarmStr;      /* 0..1 — warm bleed strength              */
+  uniform vec3  u_ambWarmColor;    /* warm tint colour                        */
+  uniform float u_skinSpecStr;     /* 0..1 — skin specular highlight strength */
+
+  /* Shadow colour cast — lifts dark pixels toward a specific colour */
+  uniform vec3  u_shadowCastColor;
+  uniform float u_shadowCastStr;
+
+  /* Halation customisation — threshold + colour tint per preset */
+  uniform float u_halThresh;       /* default 0.72 (existing behaviour)       */
+  uniform vec3  u_halTint;         /* default vec3(0.45, 0.06, 0.0) = red-orange*/
+
+  /* Ambient light reconstruction — push dark pixels toward an ambient colour */
+  uniform vec3  u_ambientColor;
+  uniform float u_ambientStr;
+  uniform float u_ambientThresh;
+
+  /* Split-tone color grading (3 zones) */
+  uniform vec3  u_splitShadow;     /* x=hue 0..1, y=sat 0..1, z=lumShift -1..1 */
+  uniform vec3  u_splitMid;
+  uniform vec3  u_splitHigh;
+  uniform float u_splitBalance;    /* -1..1                                    */
+  uniform float u_splitStr;        /* 0..1 enable                              */
+
+  /* HSL selective adjustments per color range (degrees, -1..1, -1..1) */
+  uniform vec3  u_hslReds;
+  uniform vec3  u_hslOranges;
+  uniform vec3  u_hslYellows;
+  uniform vec3  u_hslGreens;
+  uniform vec3  u_hslBlues;
+  uniform vec3  u_hslPurples;
+  uniform float u_hslEnable;
+
+  /* Soft rolloff helper for hard highlight clipping */
+  float softCl(float x, float th) {
+    if (x <= th) return x;
+    float a = max(1.0 - th, 0.001);
+    return th + a * (1.0 - exp(-(x - th) / a));
+  }
+
   /* ── RGB ↔ HSL conversion ── */
   vec3 rgb2hsl(vec3 c) {
     float hi = max(c.r, max(c.g, c.b));
@@ -997,7 +1462,31 @@ const FRAG_MAIN = `
       return;
     }
 
+    /* Crop remap — maps [0,1]×[0,1] → crop sub-region; no-op when u_crop=(0,0,1,1) */
+    imgUV = u_crop.xy + imgUV * u_crop.zw;
+
+    /* Rotation around image centre */
+    if (abs(u_rotation) > 0.001) {
+      vec2 rp = imgUV - 0.5;
+      float cr = cos(u_rotation), sr = sin(u_rotation);
+      imgUV = vec2(rp.x*cr - rp.y*sr, rp.x*sr + rp.y*cr) + 0.5;
+      if (imgUV.x < 0.0 || imgUV.x > 1.0 || imgUV.y < 0.0 || imgUV.y > 1.0) {
+        gl_FragColor = vec4(0.047, 0.039, 0.031, 1.0); return;
+      }
+    }
+
     vec3 c = texture2D(u_image, imgUV).rgb;
+
+    /* Edit: Sharpness — unsharp mask on source image before film processing */
+    if (u_sharpness > 0.001) {
+      vec2 ts = 1.0 / u_canvasSize;
+      vec3 n = texture2D(u_image, clamp(imgUV + vec2(0.0,  ts.y), 0.0, 1.0)).rgb;
+      vec3 s = texture2D(u_image, clamp(imgUV + vec2(0.0, -ts.y), 0.0, 1.0)).rgb;
+      vec3 e = texture2D(u_image, clamp(imgUV + vec2( ts.x, 0.0), 0.0, 1.0)).rgb;
+      vec3 w = texture2D(u_image, clamp(imgUV + vec2(-ts.x, 0.0), 0.0, 1.0)).rgb;
+      vec3 lap = c - (n + s + e + w) * 0.25;
+      c = clamp(c + u_sharpness * lap * 1.8, 0.0, 1.0);
+    }
 
     /* Soft focus — 9-tap box-Gaussian pre-grade blur, blended at u_softBlend */
     if (u_softBlend > 0.001) {
@@ -1043,6 +1532,35 @@ const FRAG_MAIN = `
     b = hueBandBlend(hsl.x, u_selSatCenter, u_selSatHalfW);
     hsl.y = clamp(hsl.y * mix(1.0, u_selSatMul, b), 0.0, 1.0);
 
+    /* 3b. HSL selective per-color adjustments (feathered hue bands) */
+    if (u_hslEnable > 0.5) {
+      float bb;
+      bb = hueBandBlend(hsl.x, 0.0,        0.05);
+      hsl.x = fract(hsl.x + (u_hslReds.x    / 360.0) * bb + 1.0);
+      hsl.y = clamp(hsl.y * (1.0 + u_hslReds.y    * bb), 0.0, 1.0);
+      hsl.z = clamp(hsl.z + u_hslReds.z    * bb * 0.20, 0.0, 1.0);
+      bb = hueBandBlend(hsl.x, 30.0/360.0, 0.05);
+      hsl.x = fract(hsl.x + (u_hslOranges.x / 360.0) * bb + 1.0);
+      hsl.y = clamp(hsl.y * (1.0 + u_hslOranges.y * bb), 0.0, 1.0);
+      hsl.z = clamp(hsl.z + u_hslOranges.z * bb * 0.20, 0.0, 1.0);
+      bb = hueBandBlend(hsl.x, 60.0/360.0, 0.05);
+      hsl.x = fract(hsl.x + (u_hslYellows.x / 360.0) * bb + 1.0);
+      hsl.y = clamp(hsl.y * (1.0 + u_hslYellows.y * bb), 0.0, 1.0);
+      hsl.z = clamp(hsl.z + u_hslYellows.z * bb * 0.20, 0.0, 1.0);
+      bb = hueBandBlend(hsl.x, 120.0/360.0, 0.083);
+      hsl.x = fract(hsl.x + (u_hslGreens.x  / 360.0) * bb + 1.0);
+      hsl.y = clamp(hsl.y * (1.0 + u_hslGreens.y  * bb), 0.0, 1.0);
+      hsl.z = clamp(hsl.z + u_hslGreens.z  * bb * 0.20, 0.0, 1.0);
+      bb = hueBandBlend(hsl.x, 240.0/360.0, 0.11);
+      hsl.x = fract(hsl.x + (u_hslBlues.x   / 360.0) * bb + 1.0);
+      hsl.y = clamp(hsl.y * (1.0 + u_hslBlues.y   * bb), 0.0, 1.0);
+      hsl.z = clamp(hsl.z + u_hslBlues.z   * bb * 0.20, 0.0, 1.0);
+      bb = hueBandBlend(hsl.x, 290.0/360.0, 0.083);
+      hsl.x = fract(hsl.x + (u_hslPurples.x / 360.0) * bb + 1.0);
+      hsl.y = clamp(hsl.y * (1.0 + u_hslPurples.y * bb), 0.0, 1.0);
+      hsl.z = clamp(hsl.z + u_hslPurples.z * bb * 0.20, 0.0, 1.0);
+    }
+
     c = hsl2rgb(hsl.x, hsl.y, hsl.z);
 
     /* B&W desaturation — convert to luma using custom per-stock weights */
@@ -1054,6 +1572,16 @@ const FRAG_MAIN = `
     /* 4. Shadow lift */
     vec3 shadow = (1.0 - c) * (1.0 - c);
     c += u_shadowLift * shadow * 0.157;  /* slider 100 lifts pure black to 40/255 */
+
+    /* 4b. ISL Falloff — spatial flash light falloff (runs BEFORE the tone curve) */
+    if (u_islStr > 0.001) {
+      vec2  fd   = v_uv - u_islCenter;
+      float dist = length(fd);
+      float fi   = 1.0 / max(pow(dist * u_falloffScale, u_islFalloff), 0.05);
+      fi         = clamp(fi, 0.0, 2.5);
+      float mult = mix(u_darkFloor, u_brightCeiling, fi);
+      c          = c * mix(1.0, mult, u_islStr);
+    }
 
     /* 5. Per-channel tone curve via 256-entry 1D LUT */
     float lutR = texture2D(u_lut, vec2(c.r * 0.99609375 + 0.001953125, 0.5)).r;
@@ -1071,10 +1599,71 @@ const FRAG_MAIN = `
     float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
     c = mix(vec3(lum), c, u_saturation);
 
-    /* 9. Halation — red bloom on bright highlights */
-    float hiMask = max(0.0, lum - 0.72) * (1.0/0.28);
-    c.r += hiMask * hiMask * u_halation * 0.45;
-    c.g += hiMask * hiMask * u_halation * 0.06;
+    /* 8a. Split-tone color grading — 3 zones blended by luminance + balance */
+    if (u_splitStr > 0.001) {
+      vec3  stHsl = rgb2hsl(c);
+      float lm    = stHsl.z;
+      float sB    = clamp(0.35 + u_splitBalance * 0.10, 0.05, 0.95);
+      float hB    = clamp(0.65 + u_splitBalance * 0.10, 0.05, 0.95);
+      float sw    = max(0.0, 1.0 - lm / sB);  sw = sw * sw;
+      float hw    = max(0.0, (lm - hB) / max(1.0 - hB, 0.001));  hw = hw * hw;
+      float mw    = max(0.0, 1.0 - sw - hw);
+      float wS = sw * u_splitShadow.y;
+      float wM = mw * u_splitMid.y;
+      float wH = hw * u_splitHigh.y;
+      float wT = wS + wM + wH;
+      if (wT > 0.001) {
+        float tHue = (u_splitShadow.x * wS + u_splitMid.x * wM + u_splitHigh.x * wH) / wT;
+        float dh   = tHue - stHsl.x;
+        if      (dh >  0.5) dh -= 1.0;
+        else if (dh < -0.5) dh += 1.0;
+        stHsl.x = fract(stHsl.x + dh * wT * u_splitStr * 0.65 + 1.0);
+        stHsl.y = clamp(stHsl.y + wT * 0.18 * u_splitStr, 0.0, 1.0);
+      }
+      stHsl.z = clamp(stHsl.z + (sw * u_splitShadow.z + mw * u_splitMid.z + hw * u_splitHigh.z) * 0.15 * u_splitStr, 0.0, 1.0);
+      c = hsl2rgb(stHsl.x, stHsl.y, stHsl.z);
+      lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    }
+
+    /* 8b. Luminance-based background desaturation */
+    if (u_bgDesatStr > 0.001 && u_bgDesatThresh > 0.001) {
+      float lm = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      if (lm < u_bgDesatThresh) {
+        float desat = (u_bgDesatThresh - lm) / u_bgDesatThresh * u_bgDesatStr;
+        c = mix(c, vec3(lm), clamp(desat, 0.0, 1.0));
+      }
+    }
+
+    /* 8c. Ambient warm bleed — push dark areas toward tungsten warmth */
+    if (u_ambWarmStr > 0.001 && u_ambWarmThresh > 0.001) {
+      float lm = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      if (lm < u_ambWarmThresh) {
+        float bl = (u_ambWarmThresh - lm) / u_ambWarmThresh * u_ambWarmStr;
+        c = mix(c, c * u_ambWarmColor, clamp(bl, 0.0, 1.0));
+      }
+    }
+
+    /* Shadow colour cast — lift dark pixels toward a specific colour (post-LUT) */
+    if (u_shadowCastStr > 0.001) {
+      float scLm = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      float scAm = max(0.0, (0.25 - scLm) / 0.25) * u_shadowCastStr;
+      c = mix(c, c * u_shadowCastColor, clamp(scAm, 0.0, 1.0));
+    }
+
+    /* Ambient light reconstruction — separate from warm bleed; pushes dark
+       pixels toward a specific ambient colour (e.g. sodium streetlight).      */
+    if (u_ambientStr > 0.001 && u_ambientThresh > 0.001) {
+      float amLm = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      if (amLm < u_ambientThresh) {
+        float am = (u_ambientThresh - amLm) / u_ambientThresh * u_ambientStr;
+        c = mix(c, c * u_ambientColor, clamp(am, 0.0, 1.0));
+      }
+    }
+
+    /* 9. Halation — bloom on bright highlights, per-preset threshold + tint */
+    float halRange = max(1.0 - u_halThresh, 0.001);
+    float hiMask   = max(0.0, lum - u_halThresh) * (1.0 / halRange);
+    c.rgb += u_halTint * (hiMask * hiMask) * u_halation;
 
     /* Warm tint blend (e.g. Acros 100 paper-white) */
     if (u_bwEnabled > 0.5 && u_tintAmt > 0.001) {
@@ -1104,6 +1693,60 @@ const FRAG_MAIN = `
       c = c + leak - c * leak;  /* screen blend */
     }
 
+    /* Edit tab: Exposure */
+    if (abs(u_exposure - 1.0) > 0.001) {
+      c = clamp(c * u_exposure, 0.0, 1.0);
+    }
+
+    /* Edit tab: Contrast — S-curve centered at 0.5 */
+    if (abs(u_contrast) > 0.001) {
+      c = clamp(mix(vec3(0.5), c, 1.0 + u_contrast), 0.0, 1.0);
+    }
+
+    /* Edit tab: Highlights — selective recovery/boost of bright areas */
+    if (abs(u_highlights) > 0.001) {
+      float hl = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      float hmask = smoothstep(0.5, 1.0, hl);
+      c = clamp(mix(c, c * (1.0 + u_highlights * 0.6), hmask), 0.0, 1.0);
+    }
+
+    /* Edit tab: Shadows — selective lift/crush of dark areas */
+    if (abs(u_shadows) > 0.001) {
+      float sl = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      float smask = 1.0 - smoothstep(0.0, 0.5, sl);
+      c = clamp(mix(c, c + u_shadows * 0.35, smask), 0.0, 1.0);
+    }
+
+    /* Edit tab: Green/Magenta Tint */
+    if (abs(u_editTint) > 0.001) {
+      c.g = clamp(c.g + u_editTint * 0.05, 0.0, 1.0);
+      c.r = clamp(c.r - u_editTint * 0.02, 0.0, 1.0);
+      c.b = clamp(c.b - u_editTint * 0.02, 0.0, 1.0);
+    }
+
+    /* Push/Pull: film development simulation — affects contrast */
+    if (abs(u_pushPull) > 0.001) {
+      c = clamp(mix(vec3(0.5), c, 1.0 + u_pushPull * 0.18), 0.0, 1.0);
+      c = clamp(c * (1.0 + u_pushPull * 0.04), 0.0, 1.0);
+    }
+
+    /* Skin specular simulation — warm bright pixels (likely skin) pushed toward white */
+    if (u_skinSpecStr > 0.001) {
+      float skinL = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      if (skinL > 0.78 && c.r > c.g && c.g > c.b) {
+        float sBlend = (skinL - 0.78) / 0.22 * 0.08 * u_skinSpecStr;
+        c = mix(c, vec3(1.0), clamp(sBlend, 0.0, 1.0));
+      }
+    }
+
+    /* Hard highlight clipping — lerp(soft rolloff, hard clamp) above threshold */
+    if (u_clipThresh < 0.999) {
+      float th   = u_clipThresh;
+      vec3  soft = vec3(softCl(c.r, th), softCl(c.g, th), softCl(c.b, th));
+      vec3  hard = clamp(c, 0.0, 1.0);
+      c = mix(soft, hard, clamp(u_clipHard, 0.0, 1.0));
+    }
+
     gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
   }
 `;
@@ -1121,6 +1764,20 @@ const FRAG_GRAIN = `
   uniform vec2      u_res;        /* canvas dimensions in pixels               */
   uniform float     u_intensity2; /* second grain layer (Delta 3200 coarse)    */
   uniform float     u_size2;      /* second layer pixel footprint              */
+
+  /* Chromatic aberration — applied before grain, after tone curve */
+  uniform float     u_caStr;      /* 0..1 — strength (max ~3px shift)          */
+  uniform float     u_caRadial;   /* 0 = horizontal, 1 = radial direction      */
+
+  /* Dual-pass grain colour bias + independent chroma per pass */
+  uniform float     u_chroma2;
+  uniform vec3      u_grainBias1;
+  uniform vec3      u_grainBias2;
+
+  /* Local contrast enhancement — large-radius unsharp mask */
+  uniform float     u_lceR;        /* radius in pixels                         */
+  uniform float     u_lceStr;      /* 0..1 strength                            */
+  uniform float     u_lceThresh;   /* 0..255 minimum edge magnitude            */
 
   float hash21(vec2 p) {
     p  = fract(p * vec2(127.1, 311.7));
@@ -1141,40 +1798,70 @@ const FRAG_GRAIN = `
     return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 2.0 - 1.0;
   }
 
-  /* Two-octave grain layer.
+  /* Two-octave grain layer with per-pass chroma and colour bias.
      Fine octave: grain character at sz pixels.
-     Coarse octave: silver-halide clumping at ~2.5x sz.
-     Chroma adds independent per-channel noise at the fine scale. */
-  vec3 grainLayer(float sz, float sd) {
+     Coarse octave: silver-halide clumping at ~2.5x sz.                       */
+  vec3 grainLayer(float sz, float sd, float ch, vec3 bias) {
     vec2 px  = v_uv * u_res;
     vec2 off = vec2(sd * 7.3, sd * 3.1);
 
     vec2 p1 = px / sz + off;
     vec2 p2 = px / (sz * 2.5) + off * 1.4;
 
-    /* Luma grain: blend fine detail and coarser clumping */
     float luma = vnoise(p1) * 0.72 + vnoise(p2) * 0.28;
+    float cr   = vnoise(p1 + vec2(17.3,  5.1)) * 0.72 + vnoise(p2 + vec2(37.1, 0.0)) * 0.28;
+    float cg   = vnoise(p1 + vec2( 3.7, 43.7)) * 0.72 + vnoise(p2 + vec2(37.1, 0.0)) * 0.28;
+    float cb   = vnoise(p1 + vec2(71.9, 13.1)) * 0.72 + vnoise(p2 + vec2(37.1, 0.0)) * 0.28;
 
-    /* Chroma grain: per-channel spatial offsets, shared coarse structure */
-    float cr = vnoise(p1 + vec2(17.3,  5.1)) * 0.72 + vnoise(p2 + vec2(37.1, 0.0)) * 0.28;
-    float cg = vnoise(p1 + vec2( 3.7, 43.7)) * 0.72 + vnoise(p2 + vec2(37.1, 0.0)) * 0.28;
-    float cb = vnoise(p1 + vec2(71.9, 13.1)) * 0.72 + vnoise(p2 + vec2(37.1, 0.0)) * 0.28;
-
-    return mix(vec3(luma), vec3(cr, cg, cb), u_chroma);
+    vec3 g = mix(vec3(luma), vec3(cr, cg, cb), ch);
+    return g * (vec3(1.0) + bias);
   }
 
   void main() {
-    vec4 col = texture2D(u_tex, v_uv);
+    vec4 col;
+    if (u_caStr > 0.001) {
+      float caPx = u_caStr * 3.0;                          /* max 3-pixel shift */
+      vec2  dir  = vec2(1.0, 0.0);
+      if (u_caRadial > 0.5) {
+        vec2  fc  = v_uv - vec2(0.5);
+        float lenC = length(fc);
+        if (lenC > 0.0001) dir = fc / lenC;                /* radial out from centre */
+      }
+      vec2 ofs = vec2(dir.x * caPx / u_res.x, dir.y * caPx / u_res.y);
+      col = vec4(
+        texture2D(u_tex, v_uv + ofs).r,
+        texture2D(u_tex, v_uv).g,
+        texture2D(u_tex, v_uv - ofs).b,
+        1.0
+      );
+    } else {
+      col = texture2D(u_tex, v_uv);
+    }
+    /* Local contrast enhancement (unsharp mask) — runs after tone curves, before grain */
+    if (u_lceStr > 0.001) {
+      vec2 lpx = vec2(u_lceR / u_res.x, u_lceR / u_res.y);
+      vec3 blur = (
+        texture2D(u_tex, v_uv + vec2(-lpx.x, 0.0)).rgb +
+        texture2D(u_tex, v_uv + vec2( lpx.x, 0.0)).rgb +
+        texture2D(u_tex, v_uv + vec2(0.0, -lpx.y)).rgb +
+        texture2D(u_tex, v_uv + vec2(0.0,  lpx.y)).rgb +
+        col.rgb
+      ) * 0.20;
+      vec3  edge   = col.rgb - blur;
+      float eMag   = max(abs(edge.r), max(abs(edge.g), abs(edge.b)));
+      float gate   = step(u_lceThresh / 255.0, eMag);
+      col.rgb     += edge * u_lceStr * gate;
+    }
+
     float lum = dot(col.rgb, vec3(0.2126, 0.7152, 0.0722));
 
-    /* Shadow-weighted mask: grain peaks in shadows, fades in highlights.
-       Real film grain is most visible where silver density is highest (shadows). */
+    /* Shadow-weighted mask: grain peaks in shadows, fades in highlights. */
     float mask = clamp(1.0 - lum * 0.78, 0.18, 1.0);
 
-    col.rgb += grainLayer(u_size, u_seed) * u_intensity * mask;
+    col.rgb += grainLayer(u_size, u_seed, u_chroma, u_grainBias1) * u_intensity * mask;
 
     if (u_intensity2 > 0.001) {
-      col.rgb += grainLayer(u_size2, u_seed + 17.9) * u_intensity2 * mask;
+      col.rgb += grainLayer(u_size2, u_seed + 17.9, u_chroma2, u_grainBias2) * u_intensity2 * mask;
     }
 
     gl_FragColor = vec4(clamp(col.rgb, 0.0, 1.0), 1.0);
@@ -1203,6 +1890,8 @@ const FRAG_COMP = `
   uniform float u_sprocketBandH; /* fraction of canvas height per band   */
   uniform float u_sprocketCount; /* number of holes per row               */
 
+  uniform float u_vigShape;      /* 0=oval (default), 1=rectangular       */
+
   void main() {
     vec4 color;
 
@@ -1217,12 +1906,19 @@ const FRAG_COMP = `
       /* ── AFTER: processed + vignette ── */
       color = texture2D(u_processed, v_uv);
 
-      /* Circular vignette, aspect-ratio corrected, normalised to corner = 1 */
-      vec2  c    = (v_uv - 0.5) * vec2(u_aspect, 1.0);
-      float maxD = sqrt(0.25 * u_aspect * u_aspect + 0.25);
-      float dist = length(c) / maxD;
+      /* Vignette — oval (default) or rectangular */
+      float dist = 0.0;
+      if (u_vigShape < 0.5) {
+        vec2  vc   = (v_uv - 0.5) * vec2(u_aspect, 1.0);
+        float maxD = sqrt(0.25 * u_aspect * u_aspect + 0.25);
+        dist = length(vc) / maxD;
+      } else {
+        vec2 vc = abs(v_uv - 0.5) * 2.0;
+        dist = max(vc.x, vc.y);
+      }
       float vig  = 1.0 - u_vigStrength * pow(clamp(dist, 0.0, 1.0), u_vigPower);
       color.rgb  *= clamp(vig, 0.0, 1.0);
+
     }
 
     /* Circular crop mask (Fisheye No. 2) — blacks out corners outside circle */
@@ -1301,11 +1997,24 @@ const uMain  = cacheU(progMain,  [
   'u_softBlend','u_softSigma','u_canvasSize',
   'u_fogColor','u_fogAmt',
   'u_leakEdge','u_leakColor','u_leakOpacity','u_leakWidth',
+  'u_sharpness','u_exposure','u_contrast','u_highlights','u_shadows','u_editTint','u_pushPull',
+  'u_crop','u_rotation',
+  'u_islStr','u_islFalloff','u_falloffScale','u_islCenter','u_darkFloor','u_brightCeiling',
+  'u_clipThresh','u_clipHard','u_bgDesatThresh','u_bgDesatStr',
+  'u_ambWarmThresh','u_ambWarmStr','u_ambWarmColor','u_skinSpecStr',
+  'u_shadowCastColor','u_shadowCastStr','u_halThresh','u_halTint',
+  'u_ambientColor','u_ambientStr','u_ambientThresh',
+  'u_splitShadow','u_splitMid','u_splitHigh','u_splitBalance','u_splitStr',
+  'u_hslReds','u_hslOranges','u_hslYellows','u_hslGreens','u_hslBlues','u_hslPurples','u_hslEnable',
 ]);
-const uGrain = cacheU(progGrain, ['u_tex','u_intensity','u_size','u_chroma','u_seed','u_res','u_intensity2','u_size2']);
+const uGrain = cacheU(progGrain, [
+  'u_tex','u_intensity','u_size','u_chroma','u_seed','u_res','u_intensity2','u_size2',
+  'u_caStr','u_caRadial','u_chroma2','u_grainBias1','u_grainBias2',
+  'u_lceR','u_lceStr','u_lceThresh',
+]);
 const uComp  = cacheU(progComp,  [
   'u_processed','u_original','u_vigStrength','u_vigPower','u_sliderPos','u_imgOffset','u_imgScale','u_aspect',
-  'u_circularCrop','u_sprocket','u_sprocketBandH','u_sprocketCount',
+  'u_circularCrop','u_sprocket','u_sprocketBandH','u_sprocketCount','u_vigShape',
 ]);
 
 /* Cached attribute locations */
@@ -1457,6 +2166,49 @@ let presetSprocket       = 0.0;
 let presetSprocketBandH  = 0.12;
 let presetSprocketCount  = 12.0;
 
+/* ─── Flash photography pipeline state (off by default) ─── */
+let presetIslStr         = 0.0;
+let presetIslFalloff     = 2.0;
+let presetFalloffScale   = 2.0;
+let presetIslCenter      = new Float32Array([0.5, 0.5]);
+let presetSkinSpecStr    = 0.0;
+let presetDarkFloor      = 0.0;
+let presetBrightCeiling  = 1.0;
+let presetClipThresh     = 1.0;
+let presetClipHard       = 0.0;
+let presetBgDesatThresh  = 0.0;
+let presetBgDesatStr     = 0.0;
+let presetAmbWarmThresh  = 0.0;
+let presetAmbWarmStr     = 0.0;
+let presetAmbWarmColor   = new Float32Array([1.12, 0.95, 0.78]);
+let presetCaStr          = 0.0;
+let presetCaRadial       = 1.0;
+let presetShadowCastColor = new Float32Array([1.0, 1.0, 1.0]);
+let presetShadowCastStr   = 0.0;
+let presetHalThresh       = 0.72;
+let presetHalTint         = new Float32Array([0.45, 0.06, 0.0]);
+let presetAmbientColor    = new Float32Array([1.0, 1.0, 1.0]);
+let presetAmbientStr      = 0.0;
+let presetAmbientThresh   = 0.0;
+let presetChroma2         = 0.0;
+let presetGrainBias1      = new Float32Array([0.0, 0.0, 0.0]);
+let presetGrainBias2      = new Float32Array([0.0, 0.0, 0.0]);
+let presetLceR            = 0.0;
+let presetLceStr          = 0.0;
+let presetLceThresh       = 0.0;
+let presetSplitShadow     = new Float32Array([0,0,0]);
+let presetSplitMid        = new Float32Array([0,0,0]);
+let presetSplitHigh       = new Float32Array([0,0,0]);
+let presetSplitBalance    = 0.0;
+let presetSplitStr        = 0.0;
+let presetHslReds         = new Float32Array([0,0,0]);
+let presetHslOranges      = new Float32Array([0,0,0]);
+let presetHslYellows      = new Float32Array([0,0,0]);
+let presetHslGreens       = new Float32Array([0,0,0]);
+let presetHslBlues        = new Float32Array([0,0,0]);
+let presetHslPurples      = new Float32Array([0,0,0]);
+let presetHslEnable       = 0.0;
+
 /* Uniform values (updated by sliders) */
 let uGrainVal    = 0;   /* 0..1  */
 let uVigVal      = 0;   /* 0..1  */
@@ -1464,6 +2216,42 @@ let uFadeVal     = 0;   /* 0..1 → shadow lift */
 let uColorTempV  = 0;   /* -1..1 */
 let uSatVal      = 1;   /* 0..2  */
 let uHalVal      = 0;   /* 0..1  */
+
+/* Edit tab uniform values */
+let uExposureVal   = 1.0;  /* linear multiplier */
+let uContrastVal   = 0;    /* -1..1 */
+let uHighlightsVal = 0;    /* -1..1 */
+let uShadowsVal    = 0;    /* -1..1 */
+let uSharpnessVal  = 0;    /* 0..1  */
+let uEditTintVal   = 0;    /* -1..1 */
+let uPushPullVal   = 0;    /* -2..2 */
+let uVigShapeVal   = 0;    /* 0=oval, 1=rect */
+let uDateStampOn   = false;
+let uDateStampSize = 1.0;  /* 0.3..1.5 multiplier */
+let uFlashAmount   = 0.0;  /* 0..1 master flash strength (slider-controlled) */
+let presetHasFlash = false;
+
+/* Crop & Rotate state */
+let cropMode      = false;
+let cropBox       = { x1: 0, y1: 0, w: 1, h: 1 };
+let cropRotDeg    = 0;
+let cropHandle    = null;
+let cropDragStart = null;
+let savedCropBox  = null;
+let savedCropRot  = 0;
+let fullImgUV     = { ox: 0, oy: 0, sx: 1, sy: 1 };
+
+/* Manual light leak (overrides preset when uLeakEdge > 0) */
+let uLeakEdge      = 0;      /* 0=off 1=L 2=R 3=T 4=B */
+let uLeakIntensity = 0;      /* 0..1 */
+const LEAK_COLORS = {
+  amber:  [1.00, 0.72, 0.19],
+  orange: [1.00, 0.47, 0.13],
+  red:    [0.88, 0.19, 0.19],
+  violet: [0.56, 0.25, 0.82],
+  blue:   [0.13, 0.38, 0.88],
+};
+let uLeakColorKey = 'amber';
 
 /* Identity colour matrix (column-major for WebGL) */
 const IDENTITY_MAT3 = new Float32Array([1,0,0, 0,1,0, 0,0,1]);
@@ -1478,13 +2266,12 @@ function computeImgUV(cw, ch) {
   const ia = iw / ih, ca = cw / ch;
   let sx, sy, ox, oy;
   if (ia > ca) {
-    /* image wider → full width, bars top+bottom */
     sx = 1.0; sy = ca / ia; ox = 0.0; oy = (1.0 - sy) * 0.5;
   } else {
-    /* image taller → full height, bars left+right */
     sy = 1.0; sx = ia / ca; oy = 0.0; ox = (1.0 - sx) * 0.5;
   }
-  imgUV = { ox, oy, sx, sy };
+  fullImgUV = { ox, oy, sx, sy };
+  imgUV     = { ox, oy, sx, sy };
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1551,10 +2338,85 @@ function renderPipeline(sp, uvOverride) {
   gl.uniform2f(uMain.u_canvasSize,  cw, ch);
   gl.uniform3fv(uMain.u_fogColor,   presetFogColor);
   gl.uniform1f(uMain.u_fogAmt,      presetFogAmt);
-  gl.uniform1f(uMain.u_leakEdge,    presetLeakEdge);
-  gl.uniform3fv(uMain.u_leakColor,  presetLeakColor);
-  gl.uniform1f(uMain.u_leakOpacity, presetLeakOpacity);
-  gl.uniform1f(uMain.u_leakWidth,   presetLeakWidth);
+  /* Light leak — manual controls override preset when edge is selected */
+  const _leakEdge    = uLeakEdge > 0 ? uLeakEdge    : presetLeakEdge;
+  const _leakColor   = uLeakEdge > 0 ? LEAK_COLORS[uLeakColorKey] : Array.from(presetLeakColor);
+  const _leakOpacity = uLeakEdge > 0 ? uLeakIntensity : presetLeakOpacity;
+  const _leakWidth   = uLeakEdge > 0 ? 0.28 : presetLeakWidth;
+  gl.uniform1f(uMain.u_leakEdge,    _leakEdge);
+  gl.uniform3fv(uMain.u_leakColor,  new Float32Array(_leakColor));
+  gl.uniform1f(uMain.u_leakOpacity, _leakOpacity);
+  gl.uniform1f(uMain.u_leakWidth,   _leakWidth);
+
+  /* Crop & Rotate */
+  gl.uniform4f(uMain.u_crop,     cropBox.x1, cropBox.y1, cropBox.w, cropBox.h);
+  gl.uniform1f(uMain.u_rotation, cropRotDeg * Math.PI / 180);
+
+  /* Flash photography pipeline uniforms — slider-modulated to allow
+     dialing down a flash preset OR overlaying flash on a non-flash preset.   */
+  const _fA = uFlashAmount;
+  let _islStr, _islFall, _islScale, _dkF, _brC, _clTh, _clHd;
+  let _scStr, _bgStr, _amStr, _ssStr;
+  if (presetHasFlash) {
+    _islStr  = presetIslStr        * _fA;
+    _islFall = presetIslFalloff;
+    _islScale= presetFalloffScale;
+    _dkF     = 1.0 + (presetDarkFloor     - 1.0) * _fA;
+    _brC     = 1.0 + (presetBrightCeiling - 1.0) * _fA;
+    _clTh    = 1.0 + (presetClipThresh    - 1.0) * _fA;
+    _clHd    = presetClipHard      * _fA;
+    _scStr   = presetShadowCastStr * _fA;
+    _bgStr   = presetBgDesatStr    * _fA;
+    _amStr   = presetAmbWarmStr    * _fA;
+    _ssStr   = presetSkinSpecStr   * _fA;
+  } else if (_fA > 0.001) {
+    /* Default fill-flash overlay applied on top of any non-flash preset */
+    _islStr  = 0.55 * _fA;
+    _islFall = 1.9;
+    _islScale= 4.0;
+    _dkF     = 1.0 - 0.55 * _fA;
+    _brC     = 1.0 + 0.18 * _fA;
+    _clTh    = 1.0 - 0.08 * _fA;
+    _clHd    = 0.30 * _fA;
+    _scStr   = 0.0;  _bgStr = 0.0;  _amStr = 0.0;  _ssStr = 0.0;
+  } else {
+    _islStr = 0; _islFall = presetIslFalloff; _islScale = presetFalloffScale;
+    _dkF = 1.0; _brC = 1.0; _clTh = 1.0; _clHd = 0.0;
+    _scStr = 0; _bgStr = 0; _amStr = 0; _ssStr = 0;
+  }
+  gl.uniform1f(uMain.u_islStr,         _islStr);
+  gl.uniform1f(uMain.u_islFalloff,     _islFall);
+  gl.uniform1f(uMain.u_falloffScale,   _islScale);
+  gl.uniform2fv(uMain.u_islCenter,     presetIslCenter);
+  gl.uniform1f(uMain.u_darkFloor,      _dkF);
+  gl.uniform1f(uMain.u_brightCeiling,  _brC);
+  gl.uniform1f(uMain.u_clipThresh,     _clTh);
+  gl.uniform1f(uMain.u_clipHard,       _clHd);
+  gl.uniform1f(uMain.u_bgDesatThresh,  presetBgDesatThresh);
+  gl.uniform1f(uMain.u_bgDesatStr,     _bgStr);
+  gl.uniform1f(uMain.u_ambWarmThresh,  presetAmbWarmThresh);
+  gl.uniform1f(uMain.u_ambWarmStr,     _amStr);
+  gl.uniform3fv(uMain.u_ambWarmColor,  presetAmbWarmColor);
+  gl.uniform1f(uMain.u_skinSpecStr,    _ssStr);
+  gl.uniform3fv(uMain.u_shadowCastColor, presetShadowCastColor);
+  gl.uniform1f(uMain.u_shadowCastStr,    _scStr);
+  gl.uniform1f(uMain.u_halThresh,        presetHalThresh);
+  gl.uniform3fv(uMain.u_halTint,         presetHalTint);
+  gl.uniform3fv(uMain.u_ambientColor,    presetAmbientColor);
+  gl.uniform1f(uMain.u_ambientStr,       (presetHasFlash ? presetAmbientStr * _fA : 0.0));
+  gl.uniform1f(uMain.u_ambientThresh,    presetAmbientThresh);
+  gl.uniform3fv(uMain.u_splitShadow,     presetSplitShadow);
+  gl.uniform3fv(uMain.u_splitMid,        presetSplitMid);
+  gl.uniform3fv(uMain.u_splitHigh,       presetSplitHigh);
+  gl.uniform1f(uMain.u_splitBalance,     presetSplitBalance);
+  gl.uniform1f(uMain.u_splitStr,         presetSplitStr);
+  gl.uniform3fv(uMain.u_hslReds,         presetHslReds);
+  gl.uniform3fv(uMain.u_hslOranges,      presetHslOranges);
+  gl.uniform3fv(uMain.u_hslYellows,      presetHslYellows);
+  gl.uniform3fv(uMain.u_hslGreens,       presetHslGreens);
+  gl.uniform3fv(uMain.u_hslBlues,        presetHslBlues);
+  gl.uniform3fv(uMain.u_hslPurples,      presetHslPurples);
+  gl.uniform1f(uMain.u_hslEnable,        presetHslEnable);
 
   /* RGB shift = preset base shift + colour-temperature slider adjustment
      warm (+) → more red/yellow; cool (−) → more blue */
@@ -1570,6 +2432,15 @@ function renderPipeline(sp, uvOverride) {
   gl.uniform2f(uMain.u_imgOffset,   _uv.ox, _uv.oy);
   gl.uniform2f(uMain.u_imgScale,    _uv.sx, _uv.sy);
 
+  /* Edit tab uniforms */
+  gl.uniform1f(uMain.u_sharpness,  uSharpnessVal);
+  gl.uniform1f(uMain.u_exposure,   uExposureVal);
+  gl.uniform1f(uMain.u_contrast,   uContrastVal);
+  gl.uniform1f(uMain.u_highlights, uHighlightsVal);
+  gl.uniform1f(uMain.u_shadows,    uShadowsVal);
+  gl.uniform1f(uMain.u_editTint,   uEditTintVal);
+  gl.uniform1f(uMain.u_pushPull,   uPushPullVal);
+
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
   /* ── PASS 2 — grain → fboB ── */
@@ -1578,13 +2449,21 @@ function renderPipeline(sp, uvOverride) {
   bindQuad(aGrain);
 
   bindTex(0, fboA.tex); gl.uniform1i(uGrain.u_tex, 0);
-  gl.uniform1f(uGrain.u_intensity,  uGrainVal * 3.0 * presetGrainBase);
+  gl.uniform1f(uGrain.u_intensity,  uGrainVal * 3.0 * presetGrainBase * Math.pow(1.4, uPushPullVal));
   gl.uniform1f(uGrain.u_size,       presetGrainSize);   /* preset-defined pixel footprint */
   gl.uniform1f(uGrain.u_chroma,     presetGrainChroma); /* preset-defined colour vs luma ratio */
   gl.uniform1f(uGrain.u_seed,       grainSeed);
   gl.uniform2f(uGrain.u_res,        cw, ch);
   gl.uniform1f(uGrain.u_intensity2, presetGrain2Intensity); /* second layer (Delta 3200) */
   gl.uniform1f(uGrain.u_size2,      presetGrain2Size);
+  gl.uniform1f(uGrain.u_caStr,      presetCaStr);
+  gl.uniform1f(uGrain.u_caRadial,   presetCaRadial);
+  gl.uniform1f(uGrain.u_chroma2,    presetChroma2);
+  gl.uniform3fv(uGrain.u_grainBias1, presetGrainBias1);
+  gl.uniform3fv(uGrain.u_grainBias2, presetGrainBias2);
+  gl.uniform1f(uGrain.u_lceR,       presetLceR);
+  gl.uniform1f(uGrain.u_lceStr,     presetLceStr);
+  gl.uniform1f(uGrain.u_lceThresh,  presetLceThresh);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
@@ -1606,6 +2485,7 @@ function renderPipeline(sp, uvOverride) {
   gl.uniform1f(uComp.u_sprocket,        presetSprocket);
   gl.uniform1f(uComp.u_sprocketBandH,   presetSprocketBandH);
   gl.uniform1f(uComp.u_sprocketCount,   presetSprocketCount);
+  gl.uniform1f(uComp.u_vigShape,        uVigShapeVal);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.flush();
@@ -1618,8 +2498,14 @@ function renderPipeline(sp, uvOverride) {
 function drawOverlay() {
   if (!sourceImg) return;
   const cw = ol.width, ch = ol.height;
-  const sx = Math.round(sliderPos * cw);
   oc.clearRect(0, 0, cw, ch);
+
+  if (cropMode) {
+    drawCropOverlay(oc, cw, ch);
+    return;
+  }
+
+  const sx = Math.round(sliderPos * cw);
 
   /* Divider line */
   oc.save();
@@ -1682,6 +2568,211 @@ function drawOverlay() {
 
   if (sx > imgPxLeft  + 64) label('BEFORE', imgPxLeft  + 14, 'left');
   if (sx < imgPxRight - 64) label('AFTER',  imgPxRight - 14, 'right');
+
+  /* Date stamp overlay — authentic film-camera LED look (e.g. Olympus/Canon
+     Sure Shot point-and-shoot orange 7-segment display). Format: 'YY MM DD     */
+  if (uDateStampOn) {
+    const now    = new Date();
+    const mm     = String(now.getMonth() + 1).padStart(2, '0');
+    const dd     = String(now.getDate()).padStart(2, '0');
+    const yy     = String(now.getFullYear()).slice(-2);
+    const stamp  = `'${yy} ${mm} ${dd}`;
+    const imgPxW   = imgUV.sx * cw;
+    const dsFontSz = Math.max(8, Math.round(imgPxW * 0.042 * uDateStampSize));
+    const imgBot2d = ch * (1 - imgUV.oy);
+    const imgRight = (imgUV.ox + imgUV.sx) * cw;
+    const margin   = Math.round(imgPxW * 0.028);
+    oc.save();
+    oc.font         = `${dsFontSz}px "DotGothic16", "VT323", "Courier New", monospace`;
+    oc.textBaseline = 'alphabetic';
+    oc.textAlign    = 'right';
+    /* Outer amber glow halo (LED bloom) */
+    oc.shadowColor  = 'rgba(255, 95, 25, 0.85)';
+    oc.shadowBlur   = dsFontSz * 0.55;
+    oc.fillStyle    = '#ff5d1f';
+    oc.fillText(stamp, imgRight - margin, imgBot2d - margin);
+    /* Second pass: bright LED core (tighter glow, hotter colour) */
+    oc.shadowBlur   = dsFontSz * 0.25;
+    oc.shadowColor  = 'rgba(255, 160, 60, 0.9)';
+    oc.fillStyle    = '#ffb04a';
+    oc.fillText(stamp, imgRight - margin, imgBot2d - margin);
+    oc.restore();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CROP HELPERS
+═══════════════════════════════════════════════════════════════ */
+
+function iUV2px(u, v) {
+  /* Image UV (0..1, y=0 bottom) → 2D overlay canvas pixels (y=0 top) */
+  const cw = ol.width, ch = ol.height;
+  return {
+    x: (fullImgUV.ox + u * fullImgUV.sx) * cw,
+    y: ch * (1.0 - (fullImgUV.oy + v * fullImgUV.sy)),
+  };
+}
+
+function px2iUV(px, py) {
+  /* 2D overlay canvas pixels → image UV */
+  const cw = ol.width, ch = ol.height;
+  return {
+    u: (px / cw - fullImgUV.ox) / fullImgUV.sx,
+    v: (1.0 - py / ch - fullImgUV.oy) / fullImgUV.sy,
+  };
+}
+
+function getCropHandleScreenPos() {
+  const { x1, y1, w, h } = cropBox;
+  const tl = iUV2px(x1,     y1 + h);
+  const br = iUV2px(x1 + w, y1);
+  const rx = tl.x, ry = tl.y, rw = br.x - tl.x, rh = br.y - tl.y;
+  return [
+    { id: 'tl', x: rx,        y: ry        },
+    { id: 'tc', x: rx + rw/2, y: ry        },
+    { id: 'tr', x: rx + rw,   y: ry        },
+    { id: 'ml', x: rx,        y: ry + rh/2 },
+    { id: 'mr', x: rx + rw,   y: ry + rh/2 },
+    { id: 'bl', x: rx,        y: ry + rh   },
+    { id: 'bc', x: rx + rw/2, y: ry + rh   },
+    { id: 'br', x: rx + rw,   y: ry + rh   },
+  ];
+}
+
+function getCropHandleAt(px, py) {
+  for (const hdl of getCropHandleScreenPos()) {
+    if (Math.hypot(px - hdl.x, py - hdl.y) <= 11) return hdl.id;
+  }
+  const { x1, y1, w, h } = cropBox;
+  const tl = iUV2px(x1, y1 + h), br = iUV2px(x1 + w, y1);
+  if (px >= tl.x && px <= br.x && py >= tl.y && py <= br.y) return 'move';
+  return null;
+}
+
+function doCropDrag(clientX, clientY) {
+  if (!cropDragStart || !cropHandle) return;
+  const r  = glCanvas.getBoundingClientRect();
+  const px = (clientX - r.left) * (ol.width  / r.width);
+  const py = (clientY - r.top)  * (ol.height / r.height);
+  const cur = px2iUV(px, py);
+  const s   = cropDragStart;
+  const MIN = 0.07;
+  let { x1, y1, w, h } = s.box;
+  const du = cur.u - s.u, dv = cur.v - s.v;
+
+  if (cropHandle === 'move') {
+    x1 = Math.max(0, Math.min(1 - w, s.box.x1 + du));
+    y1 = Math.max(0, Math.min(1 - h, s.box.y1 + dv));
+  } else {
+    /* Left-edge handles (tl, ml, bl) */
+    if (cropHandle === 'tl' || cropHandle === 'ml' || cropHandle === 'bl') {
+      const nx = Math.max(0, Math.min(s.box.x1 + s.box.w - MIN, s.box.x1 + du));
+      w = s.box.x1 + s.box.w - nx; x1 = nx;
+    }
+    /* Right-edge handles (tr, mr, br) */
+    if (cropHandle === 'tr' || cropHandle === 'mr' || cropHandle === 'br') {
+      w = Math.max(MIN, Math.min(1 - s.box.x1, s.box.w + du));
+    }
+    /* Top-edge handles — in image UV, top=y1+h; drag screen-up → dv>0 → h grows */
+    if (cropHandle === 'tl' || cropHandle === 'tc' || cropHandle === 'tr') {
+      h = Math.max(MIN, Math.min(1 - s.box.y1, s.box.h + dv));
+    }
+    /* Bottom-edge handles — in image UV, bottom=y1; drag screen-down → dv<0 → y1 shrinks */
+    if (cropHandle === 'bl' || cropHandle === 'bc' || cropHandle === 'br') {
+      const ny = Math.max(0, Math.min(s.box.y1 + s.box.h - MIN, s.box.y1 + dv));
+      h = s.box.y1 + s.box.h - ny; y1 = ny;
+    }
+  }
+  cropBox = { x1, y1, w, h };
+  scheduleRender();
+}
+
+function drawCropOverlay(ctx, cw, ch) {
+  const { x1, y1, w, h } = cropBox;
+  const tl = iUV2px(x1,     y1 + h);
+  const br = iUV2px(x1 + w, y1);
+  const rx = tl.x, ry = tl.y, rw = br.x - tl.x, rh = br.y - tl.y;
+
+  /* Dark mask outside crop rect */
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.60)';
+  ctx.fillRect(0, 0, cw, ch);
+  ctx.clearRect(rx, ry, rw, rh);
+  ctx.restore();
+
+  /* Rule-of-thirds lines */
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.20)';
+  ctx.lineWidth   = 0.8;
+  for (let i = 1; i <= 2; i++) {
+    ctx.beginPath(); ctx.moveTo(rx + rw*i/3, ry); ctx.lineTo(rx + rw*i/3, ry + rh); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(rx, ry + rh*i/3); ctx.lineTo(rx + rw, ry + rh*i/3); ctx.stroke();
+  }
+  ctx.restore();
+
+  /* Crop border */
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.90)';
+  ctx.lineWidth   = 1.5;
+  ctx.strokeRect(rx, ry, rw, rh);
+  ctx.restore();
+
+  /* Corner accents */
+  const cl = 14;
+  ctx.save();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth   = 3;
+  ctx.lineCap     = 'round';
+  [[rx, ry, 1, 1], [rx+rw, ry, -1, 1], [rx, ry+rh, 1, -1], [rx+rw, ry+rh, -1, -1]].forEach(([cx, cy, dx, dy]) => {
+    ctx.beginPath(); ctx.moveTo(cx + dx*cl, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + dy*cl); ctx.stroke();
+  });
+  ctx.restore();
+
+  /* Drag handles */
+  ctx.save();
+  getCropHandleScreenPos().forEach(hdl => {
+    ctx.beginPath(); ctx.arc(hdl.x, hdl.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.2; ctx.stroke();
+  });
+  ctx.restore();
+}
+
+function enterCropMode() {
+  if (!sourceImg) return;
+  savedCropBox = { ...cropBox };
+  savedCropRot = cropRotDeg;
+  cropMode = true;
+  document.getElementById('crop-toolbar').style.display = '';
+  scheduleRender();
+}
+
+function applyCrop() {
+  cropMode = false;
+  document.getElementById('crop-toolbar').style.display = 'none';
+  scheduleRender();
+  drawOverlay();
+}
+
+function cancelCrop() {
+  cropBox    = { ...savedCropBox };
+  cropRotDeg = savedCropRot;
+  const s = document.getElementById('s-croprot');
+  if (s) { s.value = savedCropRot; s.dispatchEvent(new Event('input')); }
+  cropMode = false;
+  document.getElementById('crop-toolbar').style.display = 'none';
+  scheduleRender();
+  drawOverlay();
+}
+
+function resetCrop() {
+  cropBox    = { x1: 0, y1: 0, w: 1, h: 1 };
+  cropRotDeg = 0;
+  const s = document.getElementById('s-croprot');
+  const v = document.getElementById('v-croprot');
+  if (s) { s.value = 0; s.style.setProperty('--pct','50%'); }
+  if (v) v.textContent = '0°';
+  scheduleRender();
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1742,6 +2833,8 @@ function onImageLoaded(img) {
 
   const _bs = document.getElementById('btn-save-photos');
   if (_bs) _bs.disabled = false;
+  const _bsh = document.getElementById('btn-share');
+  if (_bsh && _bsh.style.display !== 'none') _bsh.disabled = false;
 }
 
 let currentFilename     = 'photo.jpg';
@@ -2322,6 +3415,143 @@ const PRESETS = {
     satSlider: -8,    halSlider: 0,
   },
 
+  /* ── Slide / Reversal ──────────────────────────────────────────────────── */
+
+  velvia50: {
+    name: 'Fuji Velvia 50', iso: '50',
+    /* Maximum saturation and contrast. Deep shadows, vivid blues and greens. */
+    comp:  [[0,0],[48,40],[128,140],[208,220],[255,255]],
+    red:   [[0,0],[128,126],[255,255]],
+    green: [[0,0],[128,136],[255,255]],
+    blue:  [[0,2],[128,130],[255,255]],
+    rgbShift: [2/255, 4/255, 0/255],
+    grainSlider: 8,   grainSize: 0.7, grainChroma: 0.12,
+    vigSlider: 14,    vigPower: 2.0,
+    satSlider: 30,    halSlider: 0,
+  },
+
+  provia100f: {
+    name: 'Fuji Provia 100F', iso: '100',
+    /* Accurate neutral colors with high contrast. The "honest" slide film. */
+    comp:  [[0,0],[56,48],[128,136],[200,210],[255,255]],
+    red:   [[0,0],[128,126],[255,253]],
+    green: [[0,0],[128,128],[255,253]],
+    blue:  [[0,2],[128,132],[255,255]],
+    rgbShift: [-2/255, 0/255, 4/255],
+    grainSlider: 7,   grainSize: 0.7, grainChroma: 0.08,
+    vigSlider: 8,     vigPower: 2.0,
+    satSlider: 10,    halSlider: 0,
+  },
+
+  ektachrome_e100: {
+    name: 'Kodak Ektachrome E100', iso: '100',
+    /* Cool, clean, high-contrast. Blue sky pops. Minimal grain. */
+    comp:  [[0,0],[56,46],[128,136],[204,213],[255,255]],
+    red:   [[0,0],[128,125],[255,253]],
+    green: [[0,2],[128,130],[255,254]],
+    blue:  [[0,4],[128,134],[255,255]],
+    rgbShift: [-2/255, 1/255, 6/255],
+    grainSlider: 7,   grainSize: 0.6, grainChroma: 0.10,
+    vigSlider: 10,    vigPower: 2.0,
+    satSlider: 14,    halSlider: 0,
+  },
+
+  vision3_500t: {
+    name: 'Kodak Vision3 500T', iso: '500',
+    /* Cinema motion picture. Tungsten-balanced (cool under daylight). Rich shadows. */
+    comp:  [[0,8],[64,66],[128,128],[192,194],[255,246]],
+    red:   [[0,4],[128,124],[255,248]],
+    green: [[0,6],[128,130],[255,252]],
+    blue:  [[0,12],[128,138],[255,255]],
+    rgbShift: [-5/255, 0/255, 14/255],
+    grainSlider: 35,  grainSize: 1.5, grainChroma: 0.22,
+    vigSlider: 18,    vigPower: 2.2,
+    satSlider: -4,    halSlider: 14,
+  },
+
+  /* ── Flash ─────────────────────────────────────────────────────────────── */
+
+  flash_disposable: {
+    name: 'Disposable Camera', iso: '400',
+    hint: 'Party photos, wedding tables, Y2K. Warm, blown highlights, dark backgrounds.',
+    comp:  [[0,18],[64,80],[128,138],[192,202],[255,254]],
+    red:   [[0,14],[128,144],[255,255]],
+    green: [[0,10],[128,132],[255,252]],
+    blue:  [[0, 8],[128,118],[255,234]],
+    rgbShift: [14/255, 4/255, -8/255],
+    /* Grain pass 1: intensity 0.16, size 1.2, chroma 0.45 (slider 80 → ~0.16) */
+    grainSlider: 80,  grainSize: 1.2, grainChroma: 0.45,
+    vigSlider: 47,    vigPower: 2.2,
+    satSlider: 10,    halSlider: 40,
+    flashPass: {
+      islStr: 1.0, islFalloff: 2.0, falloffScale: 4.6,
+      islCenter: [0.5, 0.48],
+      darkFloor: 0.28, brightCeiling: 1.30,
+      clipThresh: 0.88, clipHard: 0.80,
+      shadowCastColor: [0.86, 0.94, 1.25], shadowCastStr: 0.35,
+      bgDesatThresh: 0.38, bgDesatStr: 0.50,
+      halThresh: 0.93, halTint: [1.0, 0.294, 0.098],
+      ambientColor: [0.85, 0.90, 1.10], ambientStr: 0.28, ambientThresh: 0.30,
+      lceR: 35, lceStr: 0.20, lceThresh: 8,
+      grain2Intensity: 0.08, grain2Size: 3.5, chroma2: 0.60,
+      grainBias1: [-0.04,  0.12, -0.06],
+      grainBias2: [ 0.08, -0.06,  0.04],
+      caStr: 0.45, caRadial: true,
+    },
+  },
+
+  flash_y2k: {
+    name: 'Y2K Night Flash', iso: '400',
+    hint: 'Nightclub, paparazzi, blown-out subject. Background goes black.',
+    comp:  [[0, 6],[60, 48],[128,135],[185,215],[255,255]],
+    red:   [[0, 8],[128,138],[255,255]],
+    green: [[0, 4],[128,128],[255,248]],
+    blue:  [[0, 6],[128,120],[255,238]],
+    rgbShift: [10/255, 2/255, -10/255],
+    /* Grain pass 1: intensity 0.18, size 1.6, chroma 0.40 (slider 90 → ~0.18) */
+    grainSlider: 90,  grainSize: 1.6, grainChroma: 0.40,
+    vigSlider: 63,    vigPower: 2.8,
+    satSlider: 16,    halSlider: 50,
+    flashPass: {
+      islStr: 1.0, islFalloff: 2.6, falloffScale: 5.6,
+      islCenter: [0.5, 0.44],
+      darkFloor: 0.08, brightCeiling: 1.75,
+      clipThresh: 0.84, clipHard: 0.95,
+      shadowCastColor: [1.20, 1.05, 0.70], shadowCastStr: 0.30,
+      bgDesatThresh: 0.32, bgDesatStr: 0.65,
+      halThresh: 0.93, halTint: [1.0, 0.196, 0.059],
+      ambientColor: [1.15, 1.05, 0.72], ambientStr: 0.35, ambientThresh: 0.35,
+      lceR: 40, lceStr: 0.28, lceThresh: 10,
+      grain2Intensity: 0.10, grain2Size: 4.0, chroma2: 0.55,
+      grainBias1: [-0.03,  0.10, -0.05],
+      grainBias2: [ 0.07, -0.05,  0.03],
+      caStr: 0.0, caRadial: true,
+    },
+  },
+
+  flash_naturalfill: {
+    name: 'Natural Fill Flash', iso: '400',
+    hint: 'Soft fill light. Flattens shadows, evens the face. Portrait and wedding look.',
+    /* Portra 400 base with overrides — single-pass grain, no halation, soft clip */
+    comp:  [[0,18],[64,74],[128,130],[192,194],[255,250]],
+    red:   [[0,10],[128,134],[255,250]],
+    green: [[0, 8],[128,128],[255,252]],
+    blue:  [[0,14],[128,122],[255,245]],
+    rgbShift: [2/255, 1/255, 3/255],
+    /* Single-pass grain: intensity 0.11, size 1.3, chroma 0.08 (slider 55 → ~0.11) */
+    grainSlider: 55,  grainSize: 1.3, grainChroma: 0.08,
+    vigSlider: 12,    vigPower: 1.6,
+    satSlider: -3,    halSlider: 0,
+    flashPass: {
+      islStr: 0.35, islFalloff: 1.7, falloffScale: 3.4,
+      islCenter: [0.5, 0.45],
+      darkFloor: 0.62, brightCeiling: 1.14,
+      clipThresh: 0.93, clipHard: 0.15,
+      lceR: 30, lceStr: 0.12, lceThresh: 6,
+      skinSpecStr: 0.75,
+    },
+  },
+
 };
 
 /* Set a slider to a value and fire its input handler (updates uniforms + scheduleRender) */
@@ -2393,6 +3623,121 @@ function applyPreset(key) {
   presetSprocketBandH = 0.12;
   presetSprocketCount = 12.0;
 
+  /* Flash photography pipeline — reset all to no-op defaults */
+  presetIslStr        = 0.0;
+  presetIslFalloff    = 2.0;
+  presetFalloffScale  = 2.0;
+  presetIslCenter     = new Float32Array([0.5, 0.5]);
+  presetDarkFloor     = 0.0;
+  presetBrightCeiling = 1.0;
+  presetClipThresh    = 1.0;
+  presetClipHard      = 0.0;
+  presetBgDesatThresh = 0.0;
+  presetBgDesatStr    = 0.0;
+  presetAmbWarmThresh = 0.0;
+  presetAmbWarmStr    = 0.0;
+  presetAmbWarmColor  = new Float32Array([1.12, 0.95, 0.78]);
+  presetCaStr         = 0.0;
+  presetCaRadial      = 1.0;
+  presetSkinSpecStr   = 0.0;
+  presetShadowCastColor = new Float32Array([1.0, 1.0, 1.0]);
+  presetShadowCastStr   = 0.0;
+  presetHalThresh       = 0.72;
+  presetHalTint         = new Float32Array([0.45, 0.06, 0.0]);
+  presetAmbientColor    = new Float32Array([1.0, 1.0, 1.0]);
+  presetAmbientStr      = 0.0;
+  presetAmbientThresh   = 0.0;
+  presetChroma2         = (p.grainChroma != null ? p.grainChroma : 0.0);
+  presetGrainBias1      = new Float32Array([0.0, 0.0, 0.0]);
+  presetGrainBias2      = new Float32Array([0.0, 0.0, 0.0]);
+  presetLceR            = 0.0;
+  presetLceStr          = 0.0;
+  presetLceThresh       = 0.0;
+  presetSplitShadow     = new Float32Array([0,0,0]);
+  presetSplitMid        = new Float32Array([0,0,0]);
+  presetSplitHigh       = new Float32Array([0,0,0]);
+  presetSplitBalance    = 0.0;
+  presetSplitStr        = 0.0;
+  presetHslReds         = new Float32Array([0,0,0]);
+  presetHslOranges      = new Float32Array([0,0,0]);
+  presetHslYellows      = new Float32Array([0,0,0]);
+  presetHslGreens       = new Float32Array([0,0,0]);
+  presetHslBlues        = new Float32Array([0,0,0]);
+  presetHslPurples      = new Float32Array([0,0,0]);
+  presetHslEnable       = 0.0;
+
+  const gp = p.gradePass || null;
+  if (gp) {
+    if (gp.splitShadow)  presetSplitShadow  = new Float32Array(gp.splitShadow);
+    if (gp.splitMid)     presetSplitMid     = new Float32Array(gp.splitMid);
+    if (gp.splitHigh)    presetSplitHigh    = new Float32Array(gp.splitHigh);
+    if (gp.splitBalance != null) presetSplitBalance = gp.splitBalance;
+    if (gp.splitStr     != null) presetSplitStr     = gp.splitStr;
+    if (gp.hslReds)      presetHslReds      = new Float32Array(gp.hslReds);
+    if (gp.hslOranges)   presetHslOranges   = new Float32Array(gp.hslOranges);
+    if (gp.hslYellows)   presetHslYellows   = new Float32Array(gp.hslYellows);
+    if (gp.hslGreens)    presetHslGreens    = new Float32Array(gp.hslGreens);
+    if (gp.hslBlues)     presetHslBlues     = new Float32Array(gp.hslBlues);
+    if (gp.hslPurples)   presetHslPurples   = new Float32Array(gp.hslPurples);
+    if (gp.hslEnable    != null) presetHslEnable    = gp.hslEnable ? 1.0 : 0.0;
+    if (gp.shadowCastColor) presetShadowCastColor = new Float32Array(gp.shadowCastColor);
+    if (gp.shadowCastStr    != null) presetShadowCastStr = gp.shadowCastStr;
+    if (gp.grain2Intensity  != null) presetGrain2Intensity = gp.grain2Intensity;
+    if (gp.grain2Size       != null) presetGrain2Size      = gp.grain2Size;
+    if (gp.chroma2          != null) presetChroma2         = gp.chroma2;
+    if (gp.grainBias1)            presetGrainBias1      = new Float32Array(gp.grainBias1);
+    if (gp.grainBias2)            presetGrainBias2      = new Float32Array(gp.grainBias2);
+  }
+
+  const fp = p.flashPass || null;
+  if (fp) {
+    if (fp.islStr        != null) presetIslStr        = fp.islStr;
+    if (fp.islFalloff    != null) presetIslFalloff    = fp.islFalloff;
+    if (fp.falloffScale  != null) presetFalloffScale  = fp.falloffScale;
+    if (fp.islCenter)             presetIslCenter     = new Float32Array(fp.islCenter);
+    if (fp.darkFloor     != null) presetDarkFloor     = fp.darkFloor;
+    if (fp.brightCeiling != null) presetBrightCeiling = fp.brightCeiling;
+    if (fp.clipThresh    != null) presetClipThresh    = fp.clipThresh;
+    if (fp.clipHard      != null) presetClipHard      = fp.clipHard;
+    if (fp.bgDesatThresh != null) presetBgDesatThresh = fp.bgDesatThresh;
+    if (fp.bgDesatStr    != null) presetBgDesatStr    = fp.bgDesatStr;
+    if (fp.ambWarmThresh != null) presetAmbWarmThresh = fp.ambWarmThresh;
+    if (fp.ambWarmStr    != null) presetAmbWarmStr    = fp.ambWarmStr;
+    if (fp.ambWarmColor)          presetAmbWarmColor  = new Float32Array(fp.ambWarmColor);
+    if (fp.caStr         != null) presetCaStr         = fp.caStr;
+    if (fp.caRadial      != null) presetCaRadial      = fp.caRadial ? 1.0 : 0.0;
+    if (fp.skinSpecStr   != null) presetSkinSpecStr   = fp.skinSpecStr;
+    if (fp.shadowCastColor)       presetShadowCastColor = new Float32Array(fp.shadowCastColor);
+    if (fp.shadowCastStr != null) presetShadowCastStr   = fp.shadowCastStr;
+    if (fp.halThresh     != null) presetHalThresh       = fp.halThresh;
+    if (fp.halTint)               presetHalTint         = new Float32Array(fp.halTint);
+    if (fp.ambientColor)          presetAmbientColor    = new Float32Array(fp.ambientColor);
+    if (fp.ambientStr    != null) presetAmbientStr      = fp.ambientStr;
+    if (fp.ambientThresh != null) presetAmbientThresh   = fp.ambientThresh;
+    if (fp.chroma2       != null) presetChroma2         = fp.chroma2;
+    if (fp.grainBias1)            presetGrainBias1      = new Float32Array(fp.grainBias1);
+    if (fp.grainBias2)            presetGrainBias2      = new Float32Array(fp.grainBias2);
+    if (fp.grain2Intensity != null) presetGrain2Intensity = fp.grain2Intensity;
+    if (fp.grain2Size      != null) presetGrain2Size      = fp.grain2Size;
+    if (fp.lceR          != null) presetLceR            = fp.lceR;
+    if (fp.lceStr        != null) presetLceStr          = fp.lceStr;
+    if (fp.lceThresh     != null) presetLceThresh       = fp.lceThresh;
+  }
+
+  /* Track whether the preset is a flash preset (affects Flash slider behaviour) */
+  presetHasFlash = !!fp;
+  document.body.classList.toggle('flash-preset', presetHasFlash || uFlashAmount > 0.001);
+
+  /* Sync Flash slider: 100% for flash presets, 0% for everything else */
+  setSlider('flashamt', presetHasFlash ? 100 : 0);
+
+  if (fp) {
+    const sH = document.getElementById('s-flashposh');
+    const sV = document.getElementById('s-flashposv');
+    if (sH) { sH.value = Math.round(presetIslCenter[0] * 100); sH.dispatchEvent(new Event('input')); }
+    if (sV) { sV.value = Math.round(presetIslCenter[1] * 100); sV.dispatchEvent(new Event('input')); }
+  }
+
   const cp = p.cameraPass || null;
   if (cp) {
     if (cp.distK1 != null)      presetDistK1       = cp.distK1;
@@ -2453,16 +3798,24 @@ function applyPreset(key) {
   scheduleRender();
 }
 
-/* ─── Filter-item click: apply preset (Color Negative) or just highlight (others) ─── */
+/* ─── Filter-item click: apply / toggle off ─── */
 document.querySelectorAll('.filter-item').forEach(item => {
   item.addEventListener('click', () => {
+    const wasActive = item.classList.contains('active');
     document.querySelectorAll('.filter-item').forEach(f => f.classList.remove('active'));
+    document.querySelectorAll('.mood-tile').forEach(t => t.classList.remove('active'));
+    if (wasActive) {
+      /* Toggle off — back to neutral baseline, no filter highlighted */
+      applyPreset('portra400');
+      ['exposure','contrast','highlights','shadows','sharpness','edittint',
+       'flashamt','fade','colortemp'].forEach(k => setSlider(k, 0));
+      return;
+    }
     item.classList.add('active');
     const key = item.dataset.filter;
     if (PRESETS[key]) {
       applyPreset(key);
     } else {
-      /* Placeholder stock — update footer label only */
       document.getElementById('footer-stock').textContent =
         item.querySelector('.fi-name').textContent;
     }
@@ -2484,12 +3837,44 @@ function wireSlider(id, onChange) {
   sync(); /* initialise display without triggering render (no image yet) */
 }
 
-wireSlider('grain',      v => { uGrainVal   = v / 100; });
-wireSlider('vignette',   v => { uVigVal     = v / 100; });
-wireSlider('fade',       v => { uFadeVal    = v / 100; });
-wireSlider('colortemp',  v => { uColorTempV = v / 100; });
-wireSlider('saturation', v => { uSatVal     = 1 + v / 100; });
-wireSlider('halation',   v => { uHalVal     = v / 100; });
+wireSlider('grain',      v => { uGrainVal      = v / 100; });
+wireSlider('vignette',   v => { uVigVal        = v / 100; });
+wireSlider('fade',       v => { uFadeVal       = v / 100; });
+wireSlider('colortemp',  v => { uColorTempV    = v / 100; });
+wireSlider('saturation', v => { uSatVal        = 1 + v / 100; });
+wireSlider('halation',   v => { uHalVal        = v / 100; });
+wireSlider('exposure',   v => { uExposureVal   = Math.pow(2.0, v / 50.0); });
+wireSlider('contrast',   v => { uContrastVal   = v / 100; });
+wireSlider('highlights', v => { uHighlightsVal = v / 100; });
+wireSlider('shadows',    v => { uShadowsVal    = v / 100; });
+wireSlider('sharpness',  v => { uSharpnessVal  = v / 100; });
+wireSlider('edittint',     v => { uEditTintVal   = v / 100; });
+wireSlider('leakintensity',v => { uLeakIntensity = v / 100; });
+wireSlider('flashposh',    v => { presetIslCenter[0] = v / 100; });
+wireSlider('flashposv',    v => { presetIslCenter[1] = v / 100; });
+wireSlider('stampsize',    v => { uDateStampSize = v / 100; drawOverlay(); });
+wireSlider('flashamt',     v => {
+  uFlashAmount = v / 100;
+  /* Show Flash Position sliders whenever any flash is active */
+  document.body.classList.toggle('flash-preset', presetHasFlash || uFlashAmount > 0.001);
+});
+
+/* Crop rotation slider — custom display with ° suffix */
+(function () {
+  const s = document.getElementById('s-croprot');
+  const v = document.getElementById('v-croprot');
+  if (!s) return;
+  function syncCropRot() {
+    const val = +s.value;
+    cropRotDeg = val;
+    const pct = ((val - +s.min) / (+s.max - +s.min) * 100).toFixed(1);
+    s.style.setProperty('--pct', pct + '%');
+    if (v) v.textContent = (val === 0 ? '0' : (val > 0 ? '+' + val.toFixed(1) : val.toFixed(1))) + '°';
+    scheduleRender();
+  }
+  s.addEventListener('input', syncCropRot);
+  syncCropRot();
+})();
 
 document.querySelectorAll('.adj-reset').forEach(btn => {
   btn.addEventListener('click', e => {
@@ -2504,11 +3889,107 @@ document.querySelectorAll('.adj-reset').forEach(btn => {
 /* Global "Reset to preset defaults" button */
 document.getElementById('btn-reset-all').addEventListener('click', () => {
   if (currentPresetKey) applyPreset(currentPresetKey);
+  /* Reset edit tab sliders */
+  ['exposure','contrast','highlights','shadows','sharpness','edittint'].forEach(id => setSlider(id, 0));
+  /* Reset push/pull to 0 */
+  document.querySelectorAll('.pp-btn').forEach(b => b.classList.remove('active'));
+  const ppZero = document.querySelector('.pp-btn[data-pp="0"]');
+  if (ppZero) ppZero.classList.add('active');
+  uPushPullVal = 0;
+  /* Reset vignette shape to oval */
+  document.querySelectorAll('.vigshape-btn').forEach(b => b.classList.remove('active'));
+  const vigOval = document.querySelector('.vigshape-btn[data-shape="0"]');
+  if (vigOval) vigOval.classList.add('active');
+  uVigShapeVal = 0;
+  /* Reset date stamp */
+  uDateStampOn = false;
+  const dsBtn = document.getElementById('btn-datestamp');
+  if (dsBtn) { dsBtn.classList.remove('active'); dsBtn.textContent = 'Off'; }
+  /* Reset light leak */
+  document.querySelectorAll('.leak-edge-btn').forEach(b => b.classList.remove('active'));
+  const leakOffBtn = document.querySelector('.leak-edge-btn[data-edge="0"]');
+  if (leakOffBtn) leakOffBtn.classList.add('active');
+  uLeakEdge = 0;
+  setSlider('leakintensity', 0);
+  /* Reset crop */
+  if (cropMode) cancelCrop();
+  cropBox    = { x1: 0, y1: 0, w: 1, h: 1 };
+  cropRotDeg = 0;
+  const cropS = document.getElementById('s-croprot');
+  if (cropS) { cropS.value = 0; cropS.dispatchEvent(new Event('input')); }
+  scheduleRender();
 });
 
 /* Hints toggle — adds/removes body.hints-on class */
 document.getElementById('hints-toggle').addEventListener('click', () => {
   document.body.classList.toggle('hints-on');
+});
+
+/* Panel tab switching */
+document.querySelectorAll('.panel-tab').forEach(tab => {
+  tab.addEventListener('click', e => {
+    e.stopPropagation();
+    document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const target = tab.dataset.tab;
+    document.getElementById('tab-film').style.display  = target === 'film'  ? '' : 'none';
+    document.getElementById('tab-edit').style.display  = target === 'edit'  ? '' : 'none';
+  });
+});
+
+/* Push/Pull buttons */
+document.querySelectorAll('.pp-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.pp-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    uPushPullVal = +btn.dataset.pp;
+    scheduleRender();
+  });
+});
+
+/* Vignette shape toggle */
+document.querySelectorAll('.vigshape-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.vigshape-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    uVigShapeVal = +btn.dataset.shape;
+    scheduleRender();
+  });
+});
+
+/* Leak edge buttons */
+document.querySelectorAll('.leak-edge-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.leak-edge-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    uLeakEdge = +btn.dataset.edge;
+    scheduleRender();
+  });
+});
+
+/* Leak color swatches */
+document.querySelectorAll('.leak-color-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.leak-color-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    uLeakColorKey = btn.dataset.color;
+    scheduleRender();
+  });
+});
+
+/* Crop mode entry / apply / cancel / reset */
+document.getElementById('btn-enter-crop').addEventListener('click', enterCropMode);
+document.getElementById('btn-crop-apply').addEventListener('click', applyCrop);
+document.getElementById('btn-crop-cancel').addEventListener('click', cancelCrop);
+document.getElementById('btn-crop-reset').addEventListener('click', resetCrop);
+
+/* Date stamp toggle */
+document.getElementById('btn-datestamp').addEventListener('click', () => {
+  uDateStampOn = !uDateStampOn;
+  const btn = document.getElementById('btn-datestamp');
+  btn.classList.toggle('active', uDateStampOn);
+  btn.textContent = uDateStampOn ? 'On' : 'Off';
+  drawOverlay();
 });
 
 /* ═══════════════════════════════════════════════════════════════
@@ -2530,6 +4011,17 @@ function nearLine(x) {
 }
 
 glCanvas.addEventListener('mousedown', e => {
+  if (cropMode) {
+    const { x, y } = canvasXY(e);
+    const handle = getCropHandleAt(x, y);
+    if (handle) {
+      cropHandle = handle;
+      const { u, v } = px2iUV(x, y);
+      cropDragStart = { u, v, box: { ...cropBox } };
+      glCanvas.style.cursor = handle === 'move' ? 'grab' : 'crosshair';
+    }
+    return;
+  }
   const {x, y} = canvasXY(e);
   if (nearHandle(x, y) || nearLine(x)) {
     dragging = true;
@@ -2540,6 +4032,17 @@ glCanvas.addEventListener('mousedown', e => {
   }
 });
 glCanvas.addEventListener('mousemove', e => {
+  if (cropMode) {
+    if (cropHandle && cropDragStart) {
+      doCropDrag(e.clientX, e.clientY);
+      glCanvas.style.cursor = 'grabbing';
+    } else {
+      const { x, y } = canvasXY(e);
+      const handle = getCropHandleAt(x, y);
+      glCanvas.style.cursor = handle ? (handle === 'move' ? 'grab' : 'crosshair') : 'default';
+    }
+    return;
+  }
   const {x, y} = canvasXY(e);
   if (dragging) {
     sliderPos = Math.max(0.01, Math.min(0.99, x / glCanvas.width));
@@ -2558,11 +4061,29 @@ glCanvas.addEventListener('mousemove', e => {
     else glCanvas.style.cursor = 'default';
   }
 });
-glCanvas.addEventListener('mouseup',    () => { dragging = false; panning = false; panStart = null; });
-glCanvas.addEventListener('mouseleave', () => { dragging = false; panning = false; panStart = null; });
+glCanvas.addEventListener('mouseup', () => {
+  if (cropMode) { cropHandle = null; cropDragStart = null; glCanvas.style.cursor = 'default'; return; }
+  dragging = false; panning = false; panStart = null;
+});
+glCanvas.addEventListener('mouseleave', () => {
+  if (cropMode) { cropHandle = null; cropDragStart = null; return; }
+  dragging = false; panning = false; panStart = null;
+});
 
 glCanvas.addEventListener('touchstart', e => {
   e.preventDefault();
+  if (cropMode) {
+    if (e.touches.length === 1) {
+      const { x, y } = canvasXY(e.touches[0]);
+      const handle = getCropHandleAt(x, y);
+      if (handle) {
+        cropHandle = handle;
+        const { u, v } = px2iUV(x, y);
+        cropDragStart = { u, v, box: { ...cropBox } };
+      }
+    }
+    return;
+  }
   if (e.touches.length === 1) {
     const {x, y} = canvasXY(e.touches[0]);
     if (nearHandle(x, y) || nearLine(x)) {
@@ -2582,6 +4103,12 @@ glCanvas.addEventListener('touchstart', e => {
 
 glCanvas.addEventListener('touchmove', e => {
   e.preventDefault();
+  if (cropMode) {
+    if (e.touches.length === 1 && cropHandle && cropDragStart) {
+      doCropDrag(e.touches[0].clientX, e.touches[0].clientY);
+    }
+    return;
+  }
   if (e.touches.length === 1) {
     if (dragging) {
       sliderPos = Math.max(0.01, Math.min(0.99, canvasXY(e.touches[0]).x / glCanvas.width));
@@ -2621,8 +4148,14 @@ glCanvas.addEventListener('touchmove', e => {
   }
 }, { passive: false });
 
-glCanvas.addEventListener('touchend',    () => { dragging = false; panning = false; panStart = null; lastPinchDist = null; });
-glCanvas.addEventListener('touchcancel', () => { dragging = false; panning = false; panStart = null; lastPinchDist = null; });
+glCanvas.addEventListener('touchend', () => {
+  if (cropMode) { cropHandle = null; cropDragStart = null; return; }
+  dragging = false; panning = false; panStart = null; lastPinchDist = null;
+});
+glCanvas.addEventListener('touchcancel', () => {
+  if (cropMode) { cropHandle = null; cropDragStart = null; return; }
+  dragging = false; panning = false; panStart = null; lastPinchDist = null;
+});
 
 /* ═══════════════════════════════════════════════════════════════
    RESIZE OBSERVER
@@ -2742,43 +4275,120 @@ glCanvas.addEventListener('click', () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   EXPORT — full native-resolution JPEG / PNG
+   EXPORT — full native-resolution JPEG / PNG  (+ Web Share API)
 ═══════════════════════════════════════════════════════════════ */
 
-document.getElementById('btn-export-trigger').addEventListener('click', () => {
-  if (!sourceImg) return;
-
-  const fmt    = document.getElementById('export-fmt').value;
-  const isJpeg = fmt !== 'png';
-  const mime   = isJpeg ? 'image/jpeg' : 'image/png';
-  const qual   = isJpeg ? 0.90 : undefined;
-  const ext    = isJpeg ? 'jpg' : 'png';
-
+async function renderFullResBlob(mime, qual) {
   const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
   let ew = sourceImg.naturalWidth, eh = sourceImg.naturalHeight;
   if (ew > maxTex || eh > maxTex) {
-    const scale = maxTex / Math.max(ew, eh);
-    ew = Math.floor(ew * scale);
-    eh = Math.floor(eh * scale);
+    const s = maxTex / Math.max(ew, eh);
+    ew = Math.floor(ew * s); eh = Math.floor(eh * s);
   }
-
   const dw = glCanvas.width, dh = glCanvas.height;
-  glCanvas.width  = ew;  glCanvas.height = eh;
+  glCanvas.width  = ew; glCanvas.height = eh;
   ensureFBOs(ew, eh);
   renderPipeline(-1.0, { ox:0, oy:0, sx:1, sy:1 });
   gl.finish();
 
-  const dataURL = glCanvas.toDataURL(mime, qual);
+  let blob;
+  if (uDateStampOn) {
+    /* Composite WebGL output + date stamp on a 2D canvas */
+    const comp = document.createElement('canvas');
+    comp.width = ew; comp.height = eh;
+    const ctx = comp.getContext('2d');
+    ctx.drawImage(glCanvas, 0, 0);
+    /* Draw date stamp — authentic film-camera LED look */
+    const now    = new Date();
+    const mm     = String(now.getMonth() + 1).padStart(2, '0');
+    const dd     = String(now.getDate()).padStart(2, '0');
+    const yy     = String(now.getFullYear()).slice(-2);
+    const stamp  = `'${yy} ${mm} ${dd}`;
+    const dsFontSz = Math.max(8, Math.round(ew * 0.042 * uDateStampSize));
+    const margin   = Math.round(ew * 0.028);
+    ctx.save();
+    ctx.font         = `${dsFontSz}px "DotGothic16", "VT323", "Courier New", monospace`;
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign    = 'right';
+    ctx.shadowColor  = 'rgba(255, 95, 25, 0.85)';
+    ctx.shadowBlur   = dsFontSz * 0.55;
+    ctx.fillStyle    = '#ff5d1f';
+    ctx.fillText(stamp, ew - margin, eh - margin);
+    ctx.shadowBlur   = dsFontSz * 0.25;
+    ctx.shadowColor  = 'rgba(255, 160, 60, 0.9)';
+    ctx.fillStyle    = '#ffb04a';
+    ctx.fillText(stamp, ew - margin, eh - margin);
+    ctx.restore();
+    blob = await new Promise(res => comp.toBlob(res, mime, qual));
+  } else {
+    blob = await new Promise(res => glCanvas.toBlob(res, mime, qual));
+  }
 
-  glCanvas.width  = dw;  glCanvas.height = dh;
-  ol.width        = dw;  ol.height       = dh;
+  glCanvas.width  = dw; glCanvas.height = dh;
+  ol.width        = dw; ol.height       = dh;
   ensureFBOs(dw, dh);
   renderPipeline(sliderPos);
   drawOverlay();
+  return blob;
+}
 
-  const a = document.createElement('a');
-  a.href = dataURL; a.download = `relens-export.${ext}`; a.click();
+async function shareOrDownload(blob, fname, mime) {
+  const file = new File([blob], fname, { type: mime });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({ files: [file], title: 'ReLens' });
+    return true;
+  }
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href = url; a.download = fname; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  return false;
+}
+
+document.getElementById('btn-export-trigger').addEventListener('click', async () => {
+  if (!sourceImg) return;
+  const btn = document.getElementById('btn-export-trigger');
+  const origLabel = btn.textContent;
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const fmt    = document.getElementById('export-fmt').value;
+    const isJpeg = fmt !== 'png';
+    const mime   = isJpeg ? 'image/jpeg' : 'image/png';
+    const ext    = isJpeg ? 'jpg' : 'png';
+    const blob   = await renderFullResBlob(mime, isJpeg ? 0.90 : undefined);
+    if (blob) await shareOrDownload(blob, `relens-export.${ext}`, mime);
+  } catch (err) {
+    if (err.name !== 'AbortError') console.error('[ReLens export]', err);
+  } finally {
+    btn.disabled = false; btn.textContent = origLabel;
+  }
 });
+
+/* ── Share button (shown on devices with Web Share API) ── */
+(function () {
+  const btnShare = document.getElementById('btn-share');
+  if (!btnShare) return;
+  /* Show the button only when the browser supports sharing files */
+  const testFile = new File([''], 'test.jpg', { type: 'image/jpeg' });
+  if (navigator.canShare && navigator.canShare({ files: [testFile] })) {
+    btnShare.style.display = 'block';
+  }
+
+  btnShare.addEventListener('click', async () => {
+    if (!sourceImg) return;
+    const orig = btnShare.textContent;
+    btnShare.disabled = true; btnShare.textContent = 'Sharing…';
+    try {
+      const blob  = await renderToBlob();
+      const fname = (currentFilename || 'relens').replace(/\.[^.]+$/, '') + '-relens.jpg';
+      if (blob) await shareOrDownload(blob, fname, 'image/jpeg');
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error('[ReLens share]', err);
+    } finally {
+      btnShare.disabled = false; btnShare.textContent = orig;
+    }
+  });
+})();
 
 /* ═══════════════════════════════════════════════════════════════
    WELCOME PAGE
@@ -2840,21 +4450,34 @@ document.getElementById('btn-export-trigger').addEventListener('click', () => {
     }, 700);
   }
 
+  /* Safe localStorage helpers — file:// and private browsing can throw */
+  function lsGet(k)    { try { return localStorage.getItem(k); }    catch(e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); }        catch(e) {} }
+
   /* First-visit gate */
-  if (!localStorage.getItem('relens_visited')) {
+  if (!lsGet('relens_visited')) {
     showWelcome();
   } else {
     welcome.classList.add('hidden');
   }
 
+  function dismissWelcome() {
+    welcome.style.display = 'none';
+    cancelAnimationFrame(wRAF); wRAF = null;
+    lsSet('relens_visited', '1');
+  }
+
   document.getElementById('btn-start').addEventListener('click', function () {
-    localStorage.setItem('relens_visited', '1');
-    hideWelcome(function () { document.getElementById('file-input').click(); });
+    dismissWelcome();
+    /* On desktop (no touch), trigger file picker directly from the gesture */
+    if (!('ontouchstart' in window) && navigator.maxTouchPoints === 0) {
+      document.getElementById('file-input').click();
+    }
   });
 
   document.getElementById('btn-welcome-gallery').addEventListener('click', function () {
-    localStorage.setItem('relens_visited', '1');
-    hideWelcome(function () { if (typeof showGallery === 'function') showGallery(); });
+    dismissWelcome();
+    if (typeof showGallery === 'function') showGallery();
   });
 
   document.getElementById('btn-home').addEventListener('click', function () {
@@ -3020,6 +4643,8 @@ document.getElementById('btn-new-photo').addEventListener('click', () => {
   canvasWrap.classList.remove('visible');
   btnExport.style.display    = 'none';
   btnSavePhotos.disabled     = true;
+  const _bsh = document.getElementById('btn-share');
+  if (_bsh) _bsh.disabled = true;
 });
 
 document.querySelector('.logo').addEventListener('click', showEditor);
@@ -3256,6 +4881,756 @@ async function renderGallery() {
   scroll.appendChild(grid);
   updateBatchBar();
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   HISTOGRAM — live RGB display in panel header
+═══════════════════════════════════════════════════════════════ */
+
+const _histCanvas = document.getElementById('histogram');
+const _histCtx    = _histCanvas ? _histCanvas.getContext('2d') : null;
+const _histTmp    = document.createElement('canvas');
+_histTmp.width = 96; _histTmp.height = 96;
+const _histTmpCtx = _histTmp.getContext('2d');
+let _histPending  = false;
+
+function updateHistogram() {
+  if (!_histCtx || !sourceImg || _histPending) return;
+  _histPending = true;
+  requestAnimationFrame(() => {
+    _histPending = false;
+    try { _histTmpCtx.drawImage(glCanvas, 0, 0, 96, 96); }
+    catch(e) { return; }
+    const data = _histTmpCtx.getImageData(0, 0, 96, 96).data;
+    const N = 64;
+    const hR = new Uint32Array(N), hG = new Uint32Array(N), hB = new Uint32Array(N);
+    for (let i = 0; i < data.length; i += 4) {
+      hR[Math.min(N - 1, Math.floor(data[i]     / 256 * N))]++;
+      hG[Math.min(N - 1, Math.floor(data[i + 1] / 256 * N))]++;
+      hB[Math.min(N - 1, Math.floor(data[i + 2] / 256 * N))]++;
+    }
+    let mx = 1;
+    for (let i = 0; i < N; i++) { if (hR[i] > mx) mx = hR[i]; if (hG[i] > mx) mx = hG[i]; if (hB[i] > mx) mx = hB[i]; }
+    const W = _histCanvas.width, H = _histCanvas.height;
+    _histCtx.clearRect(0, 0, W, H);
+    _histCtx.globalCompositeOperation = 'lighter';
+    function paint(hist, color) {
+      _histCtx.fillStyle = color;
+      _histCtx.beginPath();
+      _histCtx.moveTo(0, H);
+      for (let i = 0; i < N; i++) {
+        const x = (i / (N - 1)) * W;
+        const y = H - (hist[i] / mx) * H;
+        _histCtx.lineTo(x, y);
+      }
+      _histCtx.lineTo(W, H); _histCtx.closePath(); _histCtx.fill();
+    }
+    paint(hR, 'rgba(232, 80, 80, 0.55)');
+    paint(hG, 'rgba(96, 208, 96, 0.55)');
+    paint(hB, 'rgba(96, 160, 232, 0.55)');
+    _histCtx.globalCompositeOperation = 'source-over';
+  });
+}
+
+/* Hook into the existing scheduleRender — patch it once it exists */
+const _origScheduleRender = scheduleRender;
+scheduleRender = function() {
+  _origScheduleRender();
+  updateHistogram();
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   WB EYEDROPPER — click image to neutralize white balance
+═══════════════════════════════════════════════════════════════ */
+
+let wbPickerActive = false;
+
+document.getElementById('btn-wb-picker').addEventListener('click', () => {
+  wbPickerActive = !wbPickerActive;
+  const btn = document.getElementById('btn-wb-picker');
+  btn.classList.toggle('active', wbPickerActive);
+  glCanvas.style.cursor = wbPickerActive ? 'crosshair' : 'default';
+});
+
+glCanvas.addEventListener('click', e => {
+  if (!wbPickerActive || !sourceImg) return;
+  const r  = glCanvas.getBoundingClientRect();
+  const cx = (e.clientX - r.left) / r.width;
+  const cy = 1 - (e.clientY - r.top) / r.height;
+  const u  = (cx - imgUV.ox) / imgUV.sx;
+  const v  = (cy - imgUV.oy) / imgUV.sy;
+  if (u < 0 || u > 1 || v < 0 || v > 1) return;
+  const iw = sourceImg.naturalWidth, ih = sourceImg.naturalHeight;
+  const px = Math.floor(u * iw);
+  const py = Math.floor((1 - v) * ih);
+  const tmp = document.createElement('canvas');
+  tmp.width = 1; tmp.height = 1;
+  const tctx = tmp.getContext('2d');
+  tctx.drawImage(sourceImg, -px, -py);
+  const d = tctx.getImageData(0, 0, 1, 1).data;
+  const R = d[0] / 255, G = d[1] / 255, B = d[2] / 255;
+  /* Solve for slider values that make the sampled pixel neutral.
+     Color-temp formula in renderPipeline: R+=ct, B-=ct  where ct = slider*0.0006
+     For R'=B':  R + ct = B - ct  →  ct = (B-R)/2  →  slider = (B-R)*850
+     Tint formula: G += 0.05*tint, R/B -= 0.02*tint  (tint in 0..1)
+     For G'=(R'+B')/2:  slider ≈ -(G - (R+B)/2) * 1400                            */
+  const ctSlider   = Math.max(-100, Math.min(100, Math.round((B - R) * 850)));
+  const tintSlider = Math.max(-100, Math.min(100, Math.round(-(G - (R + B) * 0.5) * 1400)));
+  setSlider('colortemp', ctSlider);
+  setSlider('edittint',  tintSlider);
+  wbPickerActive = false;
+  document.getElementById('btn-wb-picker').classList.remove('active');
+  glCanvas.style.cursor = 'default';
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   HSL PANEL — six color ranges × three sliders each
+═══════════════════════════════════════════════════════════════ */
+
+const HSL_BANDS = [
+  { k: 'reds',    name: 'Red',    sw: '#e85050' },
+  { k: 'oranges', name: 'Orange', sw: '#e89050' },
+  { k: 'yellows', name: 'Yellow', sw: '#e8d050' },
+  { k: 'greens',  name: 'Green',  sw: '#60c860' },
+  { k: 'blues',   name: 'Blue',   sw: '#5090e8' },
+  { k: 'purples', name: 'Purple', sw: '#a060d8' },
+];
+
+/* Build HSL panel UI */
+(function buildHSLPanel() {
+  const panel = document.getElementById('hsl-panel');
+  if (!panel) return;
+  let html = '<div style="padding:11px 14px 4px"><span class="adj-name">HSL Color</span></div>';
+  HSL_BANDS.forEach(b => {
+    html += `<div class="adj-group hsl-row" data-hsl="${b.k}" style="padding:9px 14px">`;
+    html += `<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">`;
+    html += `<span style="width:11px;height:11px;border-radius:50%;background:${b.sw};display:inline-block"></span>`;
+    html += `<span class="adj-name" style="font-size:9.5px;letter-spacing:0.16em">${b.name}</span></div>`;
+    ['h','s','l'].forEach(t => {
+      html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">`;
+      html += `<span style="font-size:8.5px;width:10px;color:var(--text-dim)">${t.toUpperCase()}</span>`;
+      html += `<input class="adj-slider hsl-slider" type="range" data-band="${b.k}" data-type="${t}" min="-100" max="100" value="0" style="flex:1">`;
+      html += `<span class="adj-val hsl-val" data-band="${b.k}" data-type="${t}" style="min-width:24px;font-size:9px">0</span></div>`;
+    });
+    html += `</div>`;
+  });
+  panel.innerHTML = html;
+})();
+
+function applyHSLState() {
+  const bands = { reds: presetHslReds, oranges: presetHslOranges, yellows: presetHslYellows,
+                  greens: presetHslGreens, blues: presetHslBlues, purples: presetHslPurples };
+  /* Enable HSL pass if any band has non-zero adjustment */
+  let any = false;
+  Object.values(bands).forEach(v => { if (v[0] || v[1] || v[2]) any = true; });
+  presetHslEnable = any ? 1.0 : 0.0;
+  scheduleRender();
+}
+
+document.querySelectorAll('.hsl-slider').forEach(s => {
+  s.addEventListener('input', () => {
+    const band = s.dataset.band, type = s.dataset.type;
+    const val  = +s.value;
+    const min = +s.min, max = +s.max;
+    s.style.setProperty('--pct', (((val - min) / (max - min)) * 100).toFixed(1) + '%');
+    const lbl = document.querySelector(`.hsl-val[data-band="${band}"][data-type="${type}"]`);
+    if (lbl) lbl.textContent = val;
+    const target = { reds: presetHslReds, oranges: presetHslOranges, yellows: presetHslYellows,
+                     greens: presetHslGreens, blues: presetHslBlues, purples: presetHslPurples }[band];
+    if (!target) return;
+    /* H: ±30 degrees mapped from ±100 slider. S/L: ±1 mapped from ±100 */
+    const v = val / 100;
+    if      (type === 'h') target[0] = v * 30.0;
+    else if (type === 's') target[1] = v;
+    else                   target[2] = v;
+    applyHSLState();
+  });
+  /* init track */
+  s.style.setProperty('--pct', '50%');
+});
+
+function resetHSLPanel() {
+  document.querySelectorAll('.hsl-slider').forEach(s => {
+    s.value = 0; s.style.setProperty('--pct', '50%');
+  });
+  document.querySelectorAll('.hsl-val').forEach(l => l.textContent = '0');
+  presetHslReds.set([0,0,0]); presetHslOranges.set([0,0,0]); presetHslYellows.set([0,0,0]);
+  presetHslGreens.set([0,0,0]); presetHslBlues.set([0,0,0]); presetHslPurples.set([0,0,0]);
+  presetHslEnable = 0.0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TONE CURVES — user-drawable curves composed into the LUT
+═══════════════════════════════════════════════════════════════ */
+
+const userCurves = {
+  rgb: [[0,0],[255,255]],
+  r:   [[0,0],[255,255]],
+  g:   [[0,0],[255,255]],
+  b:   [[0,0],[255,255]],
+};
+let curvesActiveCh = 'rgb';
+let lastPresetLUTFn = null;   /* the most recent preset's LUT builder */
+
+function evalCurve(pts, x) {
+  if (x <= pts[0][0]) return pts[0][1];
+  const n = pts.length;
+  if (x >= pts[n-1][0]) return pts[n-1][1];
+  for (let i = 0; i < n - 1; i++) {
+    if (x >= pts[i][0] && x <= pts[i+1][0]) {
+      const t = (x - pts[i][0]) / (pts[i+1][0] - pts[i][0]);
+      return pts[i][1] + t * (pts[i+1][1] - pts[i][1]);
+    }
+  }
+  return x;
+}
+
+function curvesIdentity(ch) {
+  return userCurves[ch].length === 2 &&
+         userCurves[ch][0][0] === 0   && userCurves[ch][0][1] === 0 &&
+         userCurves[ch][1][0] === 255 && userCurves[ch][1][1] === 255;
+}
+
+function rebuildLUT() {
+  if (!lastPresetLUTFn) return;
+  uploadLUT(i => {
+    const base = lastPresetLUTFn(i);
+    /* Master RGB curve first, then per-channel */
+    const r1 = curvesIdentity('rgb') ? base.r : evalCurve(userCurves.rgb, base.r);
+    const g1 = curvesIdentity('rgb') ? base.g : evalCurve(userCurves.rgb, base.g);
+    const b1 = curvesIdentity('rgb') ? base.b : evalCurve(userCurves.rgb, base.b);
+    return {
+      r: Math.round(Math.max(0, Math.min(255, curvesIdentity('r') ? r1 : evalCurve(userCurves.r, r1)))),
+      g: Math.round(Math.max(0, Math.min(255, curvesIdentity('g') ? g1 : evalCurve(userCurves.g, g1)))),
+      b: Math.round(Math.max(0, Math.min(255, curvesIdentity('b') ? b1 : evalCurve(userCurves.b, b1)))),
+    };
+  });
+  scheduleRender();
+}
+
+const _curvesCanvas = document.getElementById('curves-canvas');
+const _curvesCtx    = _curvesCanvas ? _curvesCanvas.getContext('2d') : null;
+
+function drawCurves() {
+  if (!_curvesCtx) return;
+  const W = _curvesCanvas.width, H = _curvesCanvas.height;
+  _curvesCtx.clearRect(0, 0, W, H);
+  /* Grid */
+  _curvesCtx.strokeStyle = 'rgba(255,255,255,0.05)'; _curvesCtx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    _curvesCtx.beginPath(); _curvesCtx.moveTo(0, i*H/4); _curvesCtx.lineTo(W, i*H/4); _curvesCtx.stroke();
+    _curvesCtx.beginPath(); _curvesCtx.moveTo(i*W/4, 0); _curvesCtx.lineTo(i*W/4, H); _curvesCtx.stroke();
+  }
+  /* Identity diagonal */
+  _curvesCtx.strokeStyle = 'rgba(255,255,255,0.10)';
+  _curvesCtx.beginPath(); _curvesCtx.moveTo(0, H); _curvesCtx.lineTo(W, 0); _curvesCtx.stroke();
+  /* Faint preview of inactive channels */
+  ['r','g','b'].forEach(ch => {
+    if (ch === curvesActiveCh) return;
+    _curvesCtx.strokeStyle = ch === 'r' ? 'rgba(232,80,80,0.22)' :
+                              ch === 'g' ? 'rgba(96,208,96,0.22)' : 'rgba(96,160,232,0.22)';
+    _curvesCtx.lineWidth = 1;
+    _curvesCtx.beginPath();
+    for (let x = 0; x <= W; x++) {
+      const px = (x / W) * 255;
+      const py = evalCurve(userCurves[ch], px);
+      const cy = H - (py / 255) * H;
+      if (x === 0) _curvesCtx.moveTo(x, cy); else _curvesCtx.lineTo(x, cy);
+    }
+    _curvesCtx.stroke();
+  });
+  /* Active channel curve */
+  const colMap = { rgb: '#e09840', r: '#e85050', g: '#60d060', b: '#5090e8' };
+  _curvesCtx.strokeStyle = colMap[curvesActiveCh];
+  _curvesCtx.lineWidth = 2;
+  _curvesCtx.beginPath();
+  const pts = userCurves[curvesActiveCh];
+  for (let x = 0; x <= W; x++) {
+    const px = (x / W) * 255;
+    const py = evalCurve(pts, px);
+    const cy = H - (py / 255) * H;
+    if (x === 0) _curvesCtx.moveTo(x, cy); else _curvesCtx.lineTo(x, cy);
+  }
+  _curvesCtx.stroke();
+  /* Control points */
+  _curvesCtx.fillStyle = colMap[curvesActiveCh];
+  _curvesCtx.strokeStyle = '#fff';
+  _curvesCtx.lineWidth = 1.5;
+  for (const pt of pts) {
+    const cx = (pt[0] / 255) * W;
+    const cy = H - (pt[1] / 255) * H;
+    _curvesCtx.beginPath(); _curvesCtx.arc(cx, cy, 4.5, 0, 6.2832);
+    _curvesCtx.fill(); _curvesCtx.stroke();
+  }
+}
+
+let curveDragIdx = null;
+
+function curvePosFromEvent(e) {
+  const r  = _curvesCanvas.getBoundingClientRect();
+  const cx = (e.clientX - r.left) / r.width;
+  const cy = (e.clientY - r.top)  / r.height;
+  return { x: Math.max(0, Math.min(255, cx * 255)), y: Math.max(0, Math.min(255, 255 - cy * 255)) };
+}
+
+function curveHitTest(pos) {
+  const pts = userCurves[curvesActiveCh];
+  for (let i = 0; i < pts.length; i++) {
+    if (Math.hypot(pts[i][0] - pos.x, pts[i][1] - pos.y) < 15) return i;
+  }
+  return -1;
+}
+
+if (_curvesCanvas) {
+  _curvesCanvas.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const pos = curvePosFromEvent(e);
+    const hit = curveHitTest(pos);
+    const pts = userCurves[curvesActiveCh];
+    if (hit >= 0) {
+      curveDragIdx = hit;
+    } else {
+      pts.push([pos.x, pos.y]);
+      pts.sort((a, b) => a[0] - b[0]);
+      curveDragIdx = pts.findIndex(p => p[0] === pos.x && p[1] === pos.y);
+      drawCurves(); rebuildLUT();
+    }
+    _curvesCanvas.setPointerCapture(e.pointerId);
+  });
+  _curvesCanvas.addEventListener('pointermove', e => {
+    if (curveDragIdx === null) return;
+    const pos = curvePosFromEvent(e);
+    const pts = userCurves[curvesActiveCh];
+    const isEndpoint = (curveDragIdx === 0 || curveDragIdx === pts.length - 1);
+    if (isEndpoint) {
+      /* Lock endpoint X, only allow Y drag */
+      pts[curveDragIdx][1] = pos.y;
+    } else {
+      const lo = pts[curveDragIdx - 1][0] + 1;
+      const hi = pts[curveDragIdx + 1][0] - 1;
+      pts[curveDragIdx][0] = Math.max(lo, Math.min(hi, pos.x));
+      pts[curveDragIdx][1] = pos.y;
+    }
+    drawCurves(); rebuildLUT();
+  });
+  _curvesCanvas.addEventListener('pointerup', () => { curveDragIdx = null; });
+  _curvesCanvas.addEventListener('dblclick', e => {
+    const pos = curvePosFromEvent(e);
+    const hit = curveHitTest(pos);
+    const pts = userCurves[curvesActiveCh];
+    if (hit > 0 && hit < pts.length - 1) {
+      pts.splice(hit, 1);
+      drawCurves(); rebuildLUT();
+    }
+  });
+}
+
+document.querySelectorAll('.curves-tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.curves-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    curvesActiveCh = t.dataset.ch;
+    drawCurves();
+  });
+});
+
+const _curvesResetBtn = document.getElementById('curves-reset');
+if (_curvesResetBtn) _curvesResetBtn.addEventListener('click', () => {
+  userCurves.rgb = [[0,0],[255,255]];
+  userCurves.r   = [[0,0],[255,255]];
+  userCurves.g   = [[0,0],[255,255]];
+  userCurves.b   = [[0,0],[255,255]];
+  drawCurves(); rebuildLUT();
+});
+
+/* Patch applyPreset's LUT upload: intercept by wrapping uploadLUT once */
+const _origUploadLUT = uploadLUT;
+uploadLUT = function(builderFn) {
+  lastPresetLUTFn = builderFn;
+  /* If user has any non-identity curve, compose; otherwise just upload base */
+  if (!curvesIdentity('rgb') || !curvesIdentity('r') || !curvesIdentity('g') || !curvesIdentity('b')) {
+    _origUploadLUT(i => {
+      const base = builderFn(i);
+      const r1 = curvesIdentity('rgb') ? base.r : evalCurve(userCurves.rgb, base.r);
+      const g1 = curvesIdentity('rgb') ? base.g : evalCurve(userCurves.rgb, base.g);
+      const b1 = curvesIdentity('rgb') ? base.b : evalCurve(userCurves.rgb, base.b);
+      return {
+        r: Math.round(Math.max(0, Math.min(255, curvesIdentity('r') ? r1 : evalCurve(userCurves.r, r1)))),
+        g: Math.round(Math.max(0, Math.min(255, curvesIdentity('g') ? g1 : evalCurve(userCurves.g, g1)))),
+        b: Math.round(Math.max(0, Math.min(255, curvesIdentity('b') ? b1 : evalCurve(userCurves.b, b1)))),
+      };
+    });
+  } else {
+    _origUploadLUT(builderFn);
+  }
+};
+
+/* When the preset changes, reset HSL panel UI to match (presetHsl* arrays already
+   reset by applyPreset). Hook into applyPreset post-step. */
+const _origApplyPreset = applyPreset;
+applyPreset = function(key) {
+  _origApplyPreset(key);
+  /* Reset HSL slider UI when switching presets */
+  document.querySelectorAll('.hsl-slider').forEach(s => {
+    s.value = 0; s.style.setProperty('--pct', '50%');
+  });
+  document.querySelectorAll('.hsl-val').forEach(l => l.textContent = '0');
+  drawCurves();
+};
+
+drawCurves();
+
+/* ═══════════════════════════════════════════════════════════════
+   AUTO — quick histogram analysis → reasonable edit-tab defaults
+═══════════════════════════════════════════════════════════════ */
+
+function runAuto() {
+  if (!sourceImg) return;
+  const SZ = 64;
+  const tmp = document.createElement('canvas');
+  tmp.width = SZ; tmp.height = SZ;
+  const tctx = tmp.getContext('2d');
+  tctx.drawImage(sourceImg, 0, 0, SZ, SZ);
+  const data = tctx.getImageData(0, 0, SZ, SZ).data;
+  const hist = new Uint32Array(256);
+  let total = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const l = Math.round(0.2126*data[i] + 0.7152*data[i+1] + 0.0722*data[i+2]);
+    hist[l]++; total++;
+  }
+  /* Percentiles */
+  function pct(p) {
+    const target = total * p;
+    let cum = 0;
+    for (let i = 0; i < 256; i++) { cum += hist[i]; if (cum >= target) return i / 255; }
+    return 1;
+  }
+  const p5 = pct(0.05), p50 = pct(0.50), p95 = pct(0.95);
+
+  /* Exposure: nudge median toward 0.45 (slight underexposure = filmic) */
+  const stops = Math.log2(0.45 / Math.max(p50, 0.05));
+  const expSlider = Math.max(-80, Math.min(80, Math.round(stops * 50)));
+  setSlider('exposure', expSlider);
+
+  /* Contrast: stretch range if compressed */
+  const range = p95 - p5;
+  const contrastSlider = Math.max(-40, Math.min(40, Math.round((0.78 - range) * 100)));
+  setSlider('contrast', contrastSlider);
+
+  /* Shadows lift if crushed */
+  setSlider('shadows', p5 < 0.04 ? 30 : (p5 > 0.20 ? -15 : 0));
+  /* Highlights pull if blown */
+  setSlider('highlights', p95 > 0.97 ? -35 : (p95 < 0.78 ? 12 : 0));
+}
+
+document.getElementById('btn-auto').addEventListener('click', runAuto);
+
+/* ═══════════════════════════════════════════════════════════════
+   RECIPES — save current state + restore from localStorage
+═══════════════════════════════════════════════════════════════ */
+
+const RECIPES_KEY = 'relens_recipes_v1';
+
+function lsGetRecipes() {
+  try { return JSON.parse(localStorage.getItem(RECIPES_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function lsSetRecipes(list) {
+  try { localStorage.setItem(RECIPES_KEY, JSON.stringify(list)); } catch (e) {}
+}
+
+function captureRecipe() {
+  function sv(id) { const s = document.getElementById('s-' + id); return s ? +s.value : null; }
+  return {
+    preset:     currentPresetKey,
+    sliders:    {
+      grain: sv('grain'), vignette: sv('vignette'), fade: sv('fade'),
+      colortemp: sv('colortemp'), saturation: sv('saturation'), halation: sv('halation'),
+      exposure: sv('exposure'), contrast: sv('contrast'), highlights: sv('highlights'),
+      shadows: sv('shadows'), sharpness: sv('sharpness'), edittint: sv('edittint'),
+      flashamt: sv('flashamt'), leakintensity: sv('leakintensity'),
+      flashposh: sv('flashposh'), flashposv: sv('flashposv'),
+      stampsize: sv('stampsize'),
+    },
+    pushPull:    uPushPullVal,
+    vigShape:    uVigShapeVal,
+    dateStampOn: uDateStampOn,
+    leakEdge:    uLeakEdge,
+    leakColor:   uLeakColorKey,
+  };
+}
+
+function applyRecipe(r) {
+  if (!r) return;
+  if (r.preset && PRESETS[r.preset]) applyPreset(r.preset);
+  document.querySelectorAll('.filter-item').forEach(f =>
+    f.classList.toggle('active', f.dataset.filter === r.preset));
+  if (r.sliders) {
+    Object.entries(r.sliders).forEach(([k, v]) => { if (v != null) setSlider(k, v); });
+  }
+  if (r.pushPull != null) {
+    uPushPullVal = r.pushPull;
+    document.querySelectorAll('.pp-btn').forEach(b =>
+      b.classList.toggle('active', +b.dataset.pp === r.pushPull));
+  }
+  if (r.vigShape != null) {
+    uVigShapeVal = r.vigShape;
+    document.querySelectorAll('.vigshape-btn').forEach(b =>
+      b.classList.toggle('active', +b.dataset.shape === r.vigShape));
+  }
+  if (r.dateStampOn != null) {
+    uDateStampOn = !!r.dateStampOn;
+    const ds = document.getElementById('btn-datestamp');
+    if (ds) { ds.classList.toggle('active', uDateStampOn); ds.textContent = uDateStampOn ? 'On' : 'Off'; }
+  }
+  if (r.leakEdge != null) {
+    uLeakEdge = r.leakEdge;
+    document.querySelectorAll('.leak-edge-btn').forEach(b =>
+      b.classList.toggle('active', +b.dataset.edge === r.leakEdge));
+  }
+  if (r.leakColor) {
+    uLeakColorKey = r.leakColor;
+    document.querySelectorAll('.leak-color-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.color === r.leakColor));
+  }
+  scheduleRender();
+}
+
+function renderRecipesList() {
+  const list = lsGetRecipes();
+  const grp  = document.getElementById('recipes-group');
+  const cont = document.getElementById('recipes-list');
+  if (!grp || !cont) return;
+  cont.innerHTML = '';
+  if (!list.length) { grp.style.display = 'none'; return; }
+  grp.style.display = '';
+  list.forEach((r, idx) => {
+    const el = document.createElement('div');
+    el.className = 'filter-item';
+    el.dataset.recipeIdx = idx;
+    el.innerHTML = '<span class="fi-name">' + (r.name || 'Recipe ' + (idx + 1)) + '</span>'
+                 + '<span class="fi-iso">&#9733;</span>';
+    let holdTimer = null;
+    const onDown = () => { holdTimer = setTimeout(() => {
+      if (confirm('Delete recipe "' + r.name + '"?')) {
+        const all = lsGetRecipes(); all.splice(idx, 1); lsSetRecipes(all); renderRecipesList();
+      }
+    }, 700); };
+    const cancel = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
+    el.addEventListener('mousedown', onDown);
+    el.addEventListener('mouseup',   cancel);
+    el.addEventListener('mouseleave',cancel);
+    el.addEventListener('touchstart',onDown);
+    el.addEventListener('touchend',  cancel);
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.filter-item').forEach(f => f.classList.remove('active'));
+      el.classList.add('active');
+      applyRecipe(r);
+    });
+    cont.appendChild(el);
+  });
+}
+
+document.getElementById('btn-save-recipe').addEventListener('click', () => {
+  const name = prompt('Name this recipe:');
+  if (!name || !name.trim()) return;
+  const rec = captureRecipe();
+  rec.name = name.trim();
+  const all = lsGetRecipes();
+  all.unshift(rec);
+  lsSetRecipes(all.slice(0, 50));   /* cap at 50 */
+  renderRecipesList();
+});
+
+renderRecipesList();
+
+/* ═══════════════════════════════════════════════════════════════
+   MOODS — curated one-tap looks (preset + tuned sliders bundled)
+═══════════════════════════════════════════════════════════════ */
+
+const MOODS = {
+  soft: {
+    preset: 'portra400',
+    sliders: { grain: 28, vignette: 10, fade: 14, colortemp: 5, saturation: -8, halation: 12,
+               exposure: 4, contrast: -8, highlights: -10, shadows: 8 },
+    flashamt: 0,
+  },
+  golden: {
+    preset: 'gold200',
+    sliders: { grain: 38, vignette: 22, fade: 8, colortemp: 18, saturation: 10, halation: 24,
+               exposure: 6, contrast: 4, highlights: -6, shadows: 12 },
+    flashamt: 0,
+  },
+  moody: {
+    preset: 'cinestill800t',
+    sliders: { grain: 60, vignette: 28, fade: 4, colortemp: -8, saturation: -6, halation: 70,
+               exposure: -8, contrast: 18, highlights: -22, shadows: -10 },
+    flashamt: 0,
+  },
+  vintage: {
+    preset: 'pro400h',
+    sliders: { grain: 50, vignette: 30, fade: 26, colortemp: 6, saturation: -16, halation: 16,
+               exposure: 2, contrast: -6, highlights: -8, shadows: 16 },
+    flashamt: 0,
+  },
+  vibrant: {
+    preset: 'ektar100',
+    sliders: { grain: 18, vignette: 12, fade: 0, colortemp: 4, saturation: 20, halation: 6,
+               exposure: 4, contrast: 12, highlights: -4, shadows: 4, sharpness: 18 },
+    flashamt: 0,
+  },
+  cinema: {
+    preset: 'vision3_500t',
+    sliders: { grain: 45, vignette: 22, fade: 6, colortemp: -6, saturation: -2, halation: 26,
+               exposure: -2, contrast: 8, highlights: -14, shadows: 6 },
+    flashamt: 0,
+  },
+  y2k: {
+    preset: 'flash_disposable',
+    sliders: { grain: 80, vignette: 32, fade: 0, colortemp: 8, saturation: 12, halation: 38 },
+    flashamt: 75,
+  },
+  cool: {
+    preset: 'provia100f',
+    sliders: { grain: 22, vignette: 14, fade: 4, colortemp: -10, saturation: -4, halation: 10,
+               exposure: 2, contrast: 6, highlights: -8, shadows: 6 },
+    flashamt: 0,
+  },
+};
+
+function applyMood(key) {
+  const m = MOODS[key];
+  if (!m) return;
+  applyPreset(m.preset);
+  /* Highlight the underlying film stock in the filter list */
+  document.querySelectorAll('.filter-item').forEach(f =>
+    f.classList.toggle('active', f.dataset.filter === m.preset));
+  if (m.sliders) {
+    Object.entries(m.sliders).forEach(([k, v]) => setSlider(k, v));
+  }
+  if (m.flashamt != null) setSlider('flashamt', m.flashamt);
+  document.querySelectorAll('.mood-tile').forEach(t =>
+    t.classList.toggle('active', t.dataset.mood === key));
+  scheduleRender();
+}
+
+/* Generate thumbnail variations of the current photo for each mood */
+async function generateMoodThumbnails() {
+  if (!sourceImg) return;
+  const SZ = 200;
+  const aspect = sourceImg.naturalWidth / sourceImg.naturalHeight;
+  const tW = aspect > 1 ? SZ : Math.round(SZ * aspect);
+  const tH = aspect > 1 ? Math.round(SZ / aspect) : SZ;
+
+  /* Snapshot current state so we can restore */
+  const saved = {
+    presetKey: currentPresetKey,
+    sliders: {},
+    flashamt: +(document.getElementById('s-flashamt')?.value || 0),
+  };
+  ['grain','vignette','fade','colortemp','saturation','halation',
+   'exposure','contrast','highlights','shadows','sharpness','edittint'].forEach(k => {
+    const s = document.getElementById('s-' + k);
+    if (s) saved.sliders[k] = +s.value;
+  });
+
+  const origW = glCanvas.width, origH = glCanvas.height;
+  glCanvas.width = tW; glCanvas.height = tH;
+  ensureFBOs(tW, tH);
+  computeImgUV(tW, tH);
+
+  const keys = Object.keys(MOODS);
+  for (const k of keys) {
+    applyMood(k);
+    /* Render fully processed (no A/B slider) */
+    renderPipeline(-1.0, { ox: 0, oy: 0, sx: 1, sy: 1 });
+    gl.finish();
+    const url = glCanvas.toDataURL('image/jpeg', 0.78);
+    const img = document.querySelector(`.mood-tile[data-mood="${k}"] .mood-thumb`);
+    if (img) {
+      img.onload = () => img.classList.add('loaded');
+      img.src = url;
+    }
+    /* Yield to keep UI responsive */
+    await new Promise(r => requestAnimationFrame(r));
+  }
+
+  /* Restore original size + state */
+  glCanvas.width = origW; glCanvas.height = origH;
+  ol.width = origW;       ol.height = origH;
+  ensureFBOs(origW, origH);
+  computeImgUV(origW, origH);
+  if (PRESETS[saved.presetKey]) applyPreset(saved.presetKey);
+  Object.entries(saved.sliders).forEach(([k, v]) => setSlider(k, v));
+  setSlider('flashamt', saved.flashamt);
+  document.querySelectorAll('.mood-tile').forEach(t => t.classList.remove('active'));
+  scheduleRender();
+}
+
+function clearMood() {
+  /* Revert to the app's baseline — Portra 400 with neutral edit sliders */
+  applyPreset('portra400');
+  ['exposure','contrast','highlights','shadows','sharpness','edittint',
+   'flashamt','fade','colortemp'].forEach(k => setSlider(k, 0));
+  document.querySelectorAll('.mood-tile').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.filter-item').forEach(f =>
+    f.classList.toggle('active', f.dataset.filter === 'portra400'));
+  scheduleRender();
+}
+
+document.querySelectorAll('.mood-tile').forEach(t => {
+  t.addEventListener('click', () => {
+    if (t.classList.contains('active')) clearMood();
+    else                                applyMood(t.dataset.mood);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SIMPLE MODE — hide pro right panel; "Tweak" reveals it
+═══════════════════════════════════════════════════════════════ */
+
+(function () {
+  /* First-time users start in simple mode; preference is sticky */
+  const stored = (function(){ try { return localStorage.getItem('relens_simple'); } catch(e){ return null; } })();
+  const isSimple = stored === null ? true : stored === '1';
+  document.body.classList.toggle('simple-mode', isSimple);
+
+  const btnTweak = document.getElementById('btn-tweak');
+  function updateTweakBtn() {
+    const showingPanel = !document.body.classList.contains('simple-mode');
+    btnTweak.classList.toggle('is-on', showingPanel);
+    btnTweak.textContent = showingPanel ? 'Simple' : 'Tweak';
+  }
+  updateTweakBtn();
+  btnTweak.addEventListener('click', () => {
+    const wasSimple = document.body.classList.contains('simple-mode');
+    document.body.classList.toggle('simple-mode', !wasSimple);
+    try { localStorage.setItem('relens_simple', !wasSimple ? '1' : '0'); } catch(e) {}
+    updateTweakBtn();
+  });
+
+  /* Quick Save in topbar mirrors the right-panel save button (so simple-mode users can save) */
+  const quickSave = document.getElementById('btn-quick-save');
+  function syncQuickSave() {
+    const bs = document.getElementById('btn-save-photos');
+    if (!bs) return;
+    quickSave.style.display = sourceImg ? '' : 'none';
+    quickSave.disabled = bs.disabled;
+  }
+  quickSave.addEventListener('click', () => {
+    document.getElementById('btn-save-photos').click();
+  });
+  /* Poll on render so quick-save visibility tracks the panel button */
+  const _origScheduleRenderQS = scheduleRender;
+  scheduleRender = function() { _origScheduleRenderQS(); syncQuickSave(); };
+})();
+
+/* When a new photo loads, regenerate mood thumbnails */
+const _origOnImageLoadedM = onImageLoaded;
+onImageLoaded = function(img) {
+  _origOnImageLoadedM(img);
+  /* Defer until after the first render settles */
+  setTimeout(generateMoodThumbnails, 80);
+};
 
 /* ═══════════════════════════════════════════════════════════════
    INITIALISE — apply default preset after all event handlers are registered
