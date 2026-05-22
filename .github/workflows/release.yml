@@ -1,0 +1,97 @@
+name: Release
+
+# Trigger: push a tag like `v0.1.0` and this workflow builds Windows,
+# macOS (universal Intel + Apple Silicon), and Linux installers, then
+# attaches them to a Draft GitHub Release.
+#
+#   git tag v0.1.0
+#   git push --tags
+#
+# The Release shows up under github.com/<you>/<repo>/releases as a draft
+# — review, edit the changelog, then click Publish to make it public.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:        # also allow manual triggering from the Actions tab
+
+jobs:
+  publish:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: '--target universal-apple-darwin'
+          - platform: ubuntu-22.04
+            args: ''
+          - platform: windows-latest
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Cache Cargo registry + target
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux build deps
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libgtk-3-dev
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build + publish via tauri-action
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name == 'main' && format('v{0}', github.run_number) || github.ref_name }}
+          releaseName: 'ReLens ${{ github.ref_name }}'
+          releaseBody: |
+            ## Downloads
+
+            - **Windows**: download the `.msi` (recommended) or `.exe` installer.
+            - **macOS**: download the `.dmg`. Universal binary — works on Intel and Apple Silicon.
+            - **Linux**: download the `.AppImage` (portable) or `.deb` (Debian/Ubuntu).
+
+            ### Notes for first-time install
+
+            - **Windows**: the build isn't code-signed, so SmartScreen will warn you. Click **More info → Run anyway**.
+            - **macOS**: right-click the app → **Open** the first time to bypass Gatekeeper.
+            - **Linux**: `chmod +x ReLens_*.AppImage && ./ReLens_*.AppImage`.
+
+            Requires WebGPU support (modern GPU, recent OS).
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
