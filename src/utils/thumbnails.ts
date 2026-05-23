@@ -1,5 +1,5 @@
 import type { FilterPreset, SliderOverrides } from '../types/filter';
-import { renderFilter, type FilterPipeline } from './pipeline';
+import { renderFilter, type FilterPipeline, type ReferenceLUTOption, type SkinSmoothOption } from './pipeline';
 
 /**
  * Run the full filter pipeline on `sourceTexture` and return the result as
@@ -13,10 +13,12 @@ export async function renderFilterToImageData(
   preset:        FilterPreset,
   overrides:     SliderOverrides = {},
   signal?:       AbortSignal,
+  referenceLUT?: ReferenceLUTOption | null,
+  skinSmooth?:   SkinSmoothOption  | null,
 ): Promise<ImageData> {
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-  const output = await renderFilter(pipeline, device, sourceTexture, preset, overrides);
+  const output = await renderFilter(pipeline, device, sourceTexture, preset, overrides, referenceLUT, skinSmooth);
   if (signal?.aborted) { output.destroy(); throw new DOMException('Aborted', 'AbortError'); }
 
   const width  = output.width;

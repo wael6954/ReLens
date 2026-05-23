@@ -962,6 +962,12 @@ export const SLIDER_CONFIGS: Record<string, SliderConfig> = {
     min: 0, max: 100, default: 0, step: 1,
     hintText: 'Glow that bleeds around bright lights. Signature of CineStill.',
   },
+  flashStrength: {
+    id: 'flashStrength',
+    label: 'Flash Strength',
+    min: 0, max: 100, default: 100, step: 1,
+    hintText: 'How strong the flash effect is. 0 = no flash, 100 = full preset intensity.',
+  },
   flashPositionH: {
     id: 'flashPositionH',
     label: 'Flash Position H',

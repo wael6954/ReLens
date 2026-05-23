@@ -2,7 +2,7 @@ import {
   useCallback, useEffect, useMemo, useRef, useState,
   type DragEvent, type WheelEvent, type MouseEvent,
 } from 'react';
-import { useAppStore, useAppActions } from '../../stores/appStore';
+import { useAppStore, useAppActions, loadFreshPhoto } from '../../stores/appStore';
 import { getFilterById } from '../../data/filters';
 import { renderFilterToImageData } from '../../utils/thumbnails';
 import { renderFilter, exportTexture, type FilterPipeline } from '../../utils/pipeline';
@@ -10,6 +10,11 @@ import type { SliderOverrides } from '../../types/filter';
 import type { PhotoRecord } from '../../types/photo';
 import { savePhoto as fsSavePhoto, exportPhoto as fsExportPhoto } from '../../utils/storage';
 import { drawDateStamp } from '../../utils/dateStamp';
+import { extractExifDate } from '../../utils/exif';
+import { applyCropToBlob } from '../../utils/cropImage';
+import CropOverlay from './CropOverlay';
+import { detectFaces, buildFaceMask } from '../../utils/faceDetect';
+import { injectExifFromOriginal } from '../../utils/exif';
 
 /* ───────── Inline SVG icons ───────── */
 
@@ -62,13 +67,56 @@ interface PreviewCanvasProps {
 ═══════════════════════════════════════════════════════════════ */
 
 export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) {
-  const currentPhoto    = useAppStore((s) => s.currentPhoto);
-  const currentFilter   = useAppStore((s) => s.currentFilter);
-  const sliderValues    = useAppStore((s) => s.sliderValues);
-  const grainSeed       = useAppStore((s) => s.grainSeed);
+  const currentPhoto     = useAppStore((s) => s.currentPhoto);
+  const currentFilter    = useAppStore((s) => s.currentFilter);
+  const sliderValues     = useAppStore((s) => s.sliderValues);
+  const grainSeed        = useAppStore((s) => s.grainSeed);
   const dateStampEnabled = useAppStore((s) => s.dateStampEnabled);
   const dateStampSize    = useAppStore((s) => s.dateStampSize);
-  const { setPhoto, reseedGrain } = useAppActions();
+  const dateStampSource  = useAppStore((s) => s.dateStampSource);
+  const dateStampCustom  = useAppStore((s) => s.dateStampCustom);
+  const dateStampFormat  = useAppStore((s) => s.dateStampFormat);
+  const dateStampColor   = useAppStore((s) => s.dateStampColor);
+  const dateStampFont    = useAppStore((s) => s.dateStampFont);
+  const dateStampPosition = useAppStore((s) => s.dateStampPosition);
+  const leakEnabled      = useAppStore((s) => s.lightLeakEnabled);
+  const leakEdge         = useAppStore((s) => s.lightLeakEdge);
+  const leakStrength     = useAppStore((s) => s.lightLeakStrength);
+  const leakColor        = useAppStore((s) => s.lightLeakColor);
+  const wbPickerActive   = useAppStore((s) => s.wbPickerActive);
+  const cropMode         = useAppStore((s) => s.cropMode);
+  const cropBox          = useAppStore((s) => s.cropBox);
+  const cropRotation     = useAppStore((s) => s.cropRotation);
+  const referenceLUTs    = useAppStore((s) => s.referenceLUTs);
+  const referenceStrength = useAppStore((s) => s.referenceStrength);
+  const faces            = useAppStore((s) => s.faces);
+  const facesPhotoId     = useAppStore((s) => s.facesPhotoId);
+  const skinSmoothStrength = useAppStore((s) => s.skinSmoothStrength);
+  const {
+    setPhoto, reseedGrain, setSlider, setWbPickerActive,
+    setCropMode, resetCrop, setFaces, setFaceDetectError,
+  } = useAppActions();
+
+  /* Convert the light-leak store fields into the override keys that
+     `writeGradeParams` reads. Done once per state change rather than
+     inside the render callback so the closure deps stay simple.        */
+  const leakOverrides = useMemo<Record<string, number>>(() => {
+    const COLOR_RGB: Record<string, [number, number, number]> = {
+      amber:  [1.00, 0.72, 0.19],
+      orange: [1.00, 0.47, 0.13],
+      red:    [0.88, 0.19, 0.19],
+      violet: [0.56, 0.25, 0.82],
+      blue:   [0.13, 0.38, 0.88],
+    };
+    const EDGE_MAP: Record<string, number> = { left: 1, right: 2, top: 3, bottom: 4 };
+    const [r, g, b] = COLOR_RGB[leakColor] ?? COLOR_RGB.amber;
+    return {
+      leakEdge:     leakEnabled ? (EDGE_MAP[leakEdge] ?? 1) : 0,
+      leakStrength: leakEnabled ? Math.max(0, Math.min(1, leakStrength / 100)) * 0.85 : 0,
+      leakColorR:   r, leakColorG: g, leakColorB: b,
+      leakWidth:    0.30,
+    };
+  }, [leakEnabled, leakEdge, leakStrength, leakColor]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const origCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -85,9 +133,65 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
   const [zoom, setZoom] = useState(1);
   const [renderMs, setRenderMs] = useState<number | null>(null);
   const [sourceRev, setSourceRev] = useState(0);          /* bumps when sourceTex is uploaded */
+  const [exifDate,  setExifDate]  = useState<Date | null>(null);
+
+  /* ── Extract EXIF DateTimeOriginal once per photo ─────────────────────── */
+  useEffect(() => {
+    if (!currentPhoto) { setExifDate(null); return; }
+    let cancelled = false;
+    (async () => {
+      const d = await extractExifDate(currentPhoto.blob);
+      if (!cancelled) setExifDate(d);
+    })();
+    return () => { cancelled = true; };
+  }, [currentPhoto]);
+
+  // Resolve the date to actually draw, based on user choice + EXIF availability.
+  const stampDate = useMemo(() => {
+    if (dateStampSource === 'custom') {
+      const d = new Date(dateStampCustom);
+      return isNaN(d.getTime()) ? new Date() : d;
+    }
+    return exifDate ?? new Date();
+  }, [dateStampSource, dateStampCustom, exifDate]);
+
+  const stampConfig = useMemo(() => ({
+    date:       stampDate,
+    formatId:   dateStampFormat,
+    colorId:    dateStampColor,
+    fontId:     dateStampFont,
+    position:   dateStampPosition,
+    sizeFactor: dateStampSize,
+  }), [stampDate, dateStampFormat, dateStampColor, dateStampFont, dateStampPosition, dateStampSize]);
 
   /* ── Re-seed grain on filter change ONLY (slider drags must not flicker) ── */
   useEffect(() => { reseedGrain(); }, [reseedGrain, currentFilter]);
+
+  /* ── Detect faces once per photo (cached in store) ───────────────────── */
+  const photoId = currentPhoto
+    ? `${currentPhoto.filename}|${currentPhoto.blob.size}|${currentPhoto.width}x${currentPhoto.height}`
+    : '';
+  useEffect(() => {
+    if (!currentPhoto || facesPhotoId === photoId) return;
+    let cancelled = false;
+    // Clear stale state before kicking off detection so the UI shows "Detecting…"
+    setFaces([], '');
+    setFaceDetectError(null);
+    (async () => {
+      try {
+        const result = await detectFaces(currentPhoto.blob);
+        if (!cancelled) setFaces(result, photoId);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[preview] face detection failed', err);
+        if (!cancelled) {
+          setFaces([], photoId);
+          setFaceDetectError((err as Error)?.message ?? 'Face detection failed');
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentPhoto, photoId, facesPhotoId, setFaces, setFaceDetectError]);
 
   /* ── Upload photo to GPU when it changes ──────────────────────────────── */
   useEffect(() => {
@@ -184,10 +288,21 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
       return;
     }
 
-    const overrides: SliderOverrides = { ...sliderValues, grainSeed };
+    const overrides: SliderOverrides = { ...sliderValues, grainSeed, ...leakOverrides };
+    const refOpt = referenceLUTs
+      ? { R: referenceLUTs.R, G: referenceLUTs.G, B: referenceLUTs.B, strength: referenceStrength / 100 }
+      : null;
+
+    // Skin smoothing — build mask at preview size if faces detected & strength > 0
+    let skinOpt: { mask: Uint8Array; maskW: number; maskH: number; strength: number } | null = null;
+    if (skinSmoothStrength > 0 && faces.length > 0) {
+      const mw = tex.width, mh = tex.height;
+      skinOpt = { mask: buildFaceMask(faces, mw, mh), maskW: mw, maskH: mh, strength: skinSmoothStrength / 100 };
+    }
+
     const t0 = performance.now();
     try {
-      const img = await renderFilterToImageData(pipeline, device, tex, preset, overrides, signal);
+      const img = await renderFilterToImageData(pipeline, device, tex, preset, overrides, signal, refOpt, skinOpt);
       if (signal.aborted) return;
       const ctx = procC.getContext('2d');
       if (!ctx) return;
@@ -196,7 +311,7 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
         procC.height = img.height;
       }
       ctx.putImageData(img, 0, 0);
-      if (dateStampEnabled) drawDateStamp(ctx, procC.width, procC.height, dateStampSize);
+      if (dateStampEnabled) drawDateStamp(ctx, procC.width, procC.height, stampConfig);
       if (import.meta.env.DEV) setRenderMs(performance.now() - t0);
     } catch (err) {
       if ((err as DOMException)?.name !== 'AbortError') {
@@ -208,7 +323,7 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
         if (bmp && ctx) ctx.drawImage(bmp, 0, 0, procC.width, procC.height);
       }
     }
-  }, [device, pipeline, currentFilter, sliderValues, grainSeed]);
+  }, [device, pipeline, currentFilter, sliderValues, grainSeed, leakOverrides, dateStampEnabled, stampConfig, referenceLUTs, referenceStrength, faces, skinSmoothStrength]);
 
   // Coalesce render calls to once-per-frame
   const renderPendingRef = useRef(false);
@@ -221,7 +336,7 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
     });
   }, [renderPreview]);
 
-  useEffect(() => { scheduleRender(); }, [scheduleRender, currentPhoto, currentFilter, sliderValues, sourceRev, dateStampEnabled, dateStampSize]);
+  useEffect(() => { scheduleRender(); }, [scheduleRender, currentPhoto, currentFilter, sliderValues, sourceRev, dateStampEnabled, stampConfig]);
 
   /* ═══════════════════════════════════════════════════════════════
      EMPTY-STATE FILE PICKER + DROP
@@ -229,7 +344,7 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
 
   async function loadFile(file: File) {
     const bmp = await createImageBitmap(file);
-    setPhoto({ blob: file, filename: file.name, width: bmp.width, height: bmp.height });
+    loadFreshPhoto({ blob: file, filename: file.name, width: bmp.width, height: bmp.height });
     bmp.close?.();
   }
 
@@ -293,6 +408,39 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
     };
   }, [draggingSplit]);
 
+  /* ── WB picker: sample neutral-gray click → set colorTemp + tint ──────── */
+  function onCanvasClickForWB(e: MouseEvent) {
+    if (!wbPickerActive) return;
+    const orig = origCanvasRef.current;
+    if (!orig) return;
+    const rect = orig.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return;
+    const xn = (e.clientX - rect.left) / rect.width;
+    const yn = (e.clientY - rect.top)  / rect.height;
+    if (xn < 0 || xn > 1 || yn < 0 || yn > 1) return;
+    const px = Math.max(0, Math.min(orig.width  - 1, Math.floor(xn * orig.width)));
+    const py = Math.max(0, Math.min(orig.height - 1, Math.floor(yn * orig.height)));
+    const ctx = orig.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+    // Average a 5×5 patch for stability
+    const r0 = Math.max(0, px - 2), c0 = Math.max(0, py - 2);
+    const rw = Math.min(5, orig.width  - r0);
+    const ch = Math.min(5, orig.height - c0);
+    const { data } = ctx.getImageData(r0, c0, rw, ch);
+    let R = 0, G = 0, B = 0, n = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      R += data[i]; G += data[i + 1]; B += data[i + 2]; n++;
+    }
+    if (!n) return;
+    R /= n * 255; G /= n * 255; B /= n * 255;
+    // Slider math: ct slider in [-100..100], cools (-) when raw is warm (R>B).
+    const ctSlider   = Math.round((B - R) * 850);
+    const tintSlider = Math.round(-(G - (R + B) / 2) * 1400);
+    setSlider('colorTemp', Math.max(-100, Math.min(100, ctSlider)));
+    setSlider('edittint',  Math.max(-100, Math.min(100, tintSlider)));
+    setWbPickerActive(false);
+  }
+
   function onWheel(e: WheelEvent) {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
@@ -318,9 +466,16 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
     });
     device.queue.copyExternalImageToTexture({ source: full }, { texture: src }, [w, h]);
 
-    const overrides: SliderOverrides = { ...sliderValues, grainSeed };
+    const overrides: SliderOverrides = { ...sliderValues, grainSeed, ...leakOverrides };
+    const refOpt = referenceLUTs
+      ? { R: referenceLUTs.R, G: referenceLUTs.G, B: referenceLUTs.B, strength: referenceStrength / 100 }
+      : null;
+    let skinOpt: { mask: Uint8Array; maskW: number; maskH: number; strength: number } | null = null;
+    if (skinSmoothStrength > 0 && faces.length > 0) {
+      skinOpt = { mask: buildFaceMask(faces, w, h), maskW: w, maskH: h, strength: skinSmoothStrength / 100 };
+    }
     const tex = preset
-      ? await renderFilter(pipeline, device, src, preset, overrides)
+      ? await renderFilter(pipeline, device, src, preset, overrides, refOpt, skinOpt)
       : src;        // no filter → caller exports the raw upload
     if (preset) src.destroy();
     return { tex, w, h };
@@ -328,6 +483,26 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
 
   const [exporting, setExporting] = useState(false);
   const [downloadMenu, setDownloadMenu] = useState(false);
+
+  /* ── Apply destructive crop to the source blob ────────────────────────── */
+  async function onApplyCrop() {
+    if (!currentPhoto) return;
+    try {
+      const { blob, width, height } = await applyCropToBlob(
+        currentPhoto.blob,
+        { box: cropBox, rotation: cropRotation },
+        currentPhoto.blob.type || 'image/jpeg',
+        0.95,
+      );
+      const cropped = new File([blob], currentPhoto.filename, { type: blob.type });
+      setPhoto({ blob: cropped, filename: currentPhoto.filename, width, height });
+      resetCrop();
+      setCropMode(false);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[preview] crop failed', err);
+    }
+  }
 
   /* ── Keyboard shortcut bridge from EditorPage (Cmd/Ctrl+S / +D) ─────── */
   useEffect(() => {
@@ -352,7 +527,7 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
     if (!ctx) { bmp.close?.(); return blob; }
     ctx.drawImage(bmp, 0, 0);
     bmp.close?.();
-    drawDateStamp(ctx, w, h, dateStampSize);
+    drawDateStamp(ctx, w, h, stampConfig);
     return new Promise<Blob>((resolve, reject) => {
       c.toBlob((b) => b ? resolve(b) : reject(new Error('toBlob null')),
                mime, mime === 'image/jpeg' ? quality : undefined);
@@ -368,6 +543,7 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
       let blob = await exportTexture(device, r.tex, r.w, r.h, 'image/jpeg', 0.95);
       r.tex.destroy();
       blob = await maybeStampBlob(blob, r.w, r.h, 'image/jpeg', 0.95);
+      blob = await injectExifFromOriginal(currentPhoto.blob, blob);
       const filterName = currentFilter
         ? (getFilterById(currentFilter)?.name ?? 'Unfiltered')
         : 'Unfiltered';
@@ -400,6 +576,9 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
       let blob = await exportTexture(device, r.tex, r.w, r.h, mime, 0.92);
       r.tex.destroy();
       blob = await maybeStampBlob(blob, r.w, r.h, mime, 0.92);
+      if (mime === 'image/jpeg') {
+        blob = await injectExifFromOriginal(currentPhoto.blob, blob);
+      }
       const base = currentPhoto.filename.replace(/\.[^.]+$/, '');
       await fsExportPhoto(blob, `${base}-relens`, format);
     } catch (err) {
@@ -424,11 +603,15 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
     <div className="flex flex-col flex-1 min-h-0">
       {/* ─── Canvas area ─────────────────────────────────────────────────── */}
       <div
-        className="relative flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-film-black"
+        className={[
+          'relative flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-film-black',
+          wbPickerActive && hasPhoto ? 'cursor-crosshair' : '',
+        ].join(' ')}
         onDragOver={(e) => { e.preventDefault(); }}
         onDrop={onDrop}
         onWheel={hasPhoto ? onWheel : undefined}
         onDoubleClick={hasPhoto ? () => setZoom(1) : undefined}
+        onClick={hasPhoto && wbPickerActive ? onCanvasClickForWB : undefined}
       >
         {!hasPhoto ? (
           /* ─── EMPTY STATE ─── */
@@ -447,6 +630,27 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
             {loading && (
               <div className="absolute inset-0 pointer-events-none animate-pulse bg-film-amber/[0.04]" />
             )}
+
+            {wbPickerActive && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] font-sans bg-film-amber text-film-black rounded-sm shadow-lg pointer-events-none">
+                Click a neutral-gray spot
+              </div>
+            )}
+
+            {/* Crop toggle (top-left) */}
+            <button
+              type="button"
+              onClick={() => setCropMode(!cropMode)}
+              className={[
+                'absolute top-3 left-3 z-30 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] font-sans rounded-sm border backdrop-blur-sm transition-colors',
+                cropMode
+                  ? 'bg-film-amber border-film-amber text-film-black'
+                  : 'bg-film-surface/80 border-film-border text-film-text hover:border-film-amber hover:text-film-amber',
+              ].join(' ')}
+              title="Crop & rotate"
+            >
+              {cropMode ? 'Crop On' : 'Crop'}
+            </button>
 
             {/* Compare-mode toggle (top-right) */}
             <button
@@ -513,6 +717,13 @@ export default function PreviewCanvas({ device, pipeline }: PreviewCanvasProps) 
               </div>
             )}
           </>
+        )}
+
+        {cropMode && hasPhoto && (
+          <CropOverlay
+            getCanvasRect={() => procCanvasRef.current?.getBoundingClientRect() ?? null}
+            onApply={onApplyCrop}
+          />
         )}
       </div>
 

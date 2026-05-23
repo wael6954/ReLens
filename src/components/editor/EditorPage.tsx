@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWebGPU } from '../../hooks/useWebGPU';
 import { createPipeline } from '../../utils/pipeline';
-import { useAppStore, useAppActions } from '../../stores/appStore';
+import { useAppStore, useAppActions, undo, redo } from '../../stores/appStore';
 import { FILTERS } from '../../data/filters';
+import { initUserPresets } from '../../utils/presetStorage';
 import TopBar from './TopBar';
 import FilterPanel from './FilterPanel';
 import PreviewCanvas from './PreviewCanvas';
 import AdjustmentPanel from './AdjustmentPanel';
+import BatchDialog from './BatchDialog';
 
 /* ─── Compatibility / error banner ─── */
 
@@ -110,6 +112,10 @@ export default function EditorPage() {
   const { setFilter } = useAppActions();
 
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
+
+  /* Load user presets from disk once on mount */
+  useEffect(() => { void initUserPresets(); }, []);
 
   /* ─── Global keyboard shortcuts ───────────────────────────────────────── */
   useEffect(() => {
@@ -128,6 +134,17 @@ export default function EditorPage() {
       if (isMod && (e.key === 'd' || e.key === 'D') && !inField) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent('app:download'));
+        return;
+      }
+      // Cmd/Ctrl+Z → undo, Cmd/Ctrl+Shift+Z (or Ctrl+Y) → redo
+      if (isMod && (e.key === 'z' || e.key === 'Z') && !inField) {
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+        return;
+      }
+      if (isMod && (e.key === 'y' || e.key === 'Y') && !inField) {
+        e.preventDefault();
+        redo();
         return;
       }
       // Escape → close sheet, or deselect filter
@@ -158,7 +175,7 @@ export default function EditorPage() {
         <CompatBanner message={`WebGPU reported an error: ${error}. Open the dev console for details.`} />
       )}
 
-      <TopBar />
+      <TopBar onBatchClick={() => setBatchOpen(true)} />
 
       <div className="flex flex-1 flex-col md:flex-row min-h-0">
         {/* ─── Left: filter panel ─────────────────────────────────────────── */}
@@ -191,6 +208,13 @@ export default function EditorPage() {
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
         <AdjustmentPanel />
       </BottomSheet>
+
+      <BatchDialog
+        open={batchOpen}
+        onClose={() => setBatchOpen(false)}
+        device={device}
+        pipeline={pipeline}
+      />
 
       {/* Hidden bootstrap canvas — WebGPU context lives here, never displayed */}
       <canvas ref={initCanvasRef} className="hidden" width={1} height={1} aria-hidden />

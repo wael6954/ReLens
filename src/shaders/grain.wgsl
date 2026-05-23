@@ -44,15 +44,30 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
   let lum  = luminance(c);
   let mask = sin(clamp(lum, 0.0, 1.0) * PI);
 
+  // ── Edge-aware modulation ──────────────────────────────────────────────
+  // Real silver-halide grain clumps along density boundaries — it's more
+  // visible in detailed regions than on smooth gradients. Estimate the
+  // local luma gradient with a 4-tap stencil and use it to push grain
+  // intensity toward 1.5× on edges and 0.55× on flat areas.
+  let ts   = 1.0 / vec2f(dim);
+  let lN   = luminance(textureSampleLevel(inputTex, samp, uv + vec2f(0.0,  ts.y), 0.0).rgb);
+  let lS   = luminance(textureSampleLevel(inputTex, samp, uv - vec2f(0.0,  ts.y), 0.0).rgb);
+  let lE   = luminance(textureSampleLevel(inputTex, samp, uv + vec2f(ts.x, 0.0), 0.0).rgb);
+  let lW   = luminance(textureSampleLevel(inputTex, samp, uv - vec2f(ts.x, 0.0), 0.0).rgb);
+  let grad = length(vec2f(lE - lW, lN - lS));
+  let edgeWeight = 0.55 + 0.95 * smoothstep(0.0, 0.18, grad);
+
+  let m = mask * edgeWeight;
+
   // Pass 1
   if (params.intensity1 > 0.001) {
     let g = grain_layer(px, params.size1, params.chroma1, params.seed1);
-    c = c + g * (vec3f(1.0) + params.color_bias1) * params.intensity1 * mask;
+    c = c + g * (vec3f(1.0) + params.color_bias1) * params.intensity1 * m;
   }
   // Pass 2 — independent seed
   if (params.intensity2 > 0.001) {
     let g = grain_layer(px, params.size2, params.chroma2, params.seed2);
-    c = c + g * (vec3f(1.0) + params.color_bias2) * params.intensity2 * mask;
+    c = c + g * (vec3f(1.0) + params.color_bias2) * params.intensity2 * m;
   }
 
   textureStore(outputTex, vec2i(i32(gid.x), i32(gid.y)), vec4f(clamp(c, vec3f(0.0), vec3f(1.0)), 1.0));

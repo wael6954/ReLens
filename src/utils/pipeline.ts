@@ -1,4 +1,5 @@
 import type { FilterPreset, SliderOverrides } from '../types/filter';
+import { composeLUT } from './referenceLUT';
 
 import commonWgsl     from '../shaders/common.wgsl?raw';
 import toneCurveWgsl  from '../shaders/toneCurve.wgsl?raw';
@@ -6,6 +7,7 @@ import colorGradeWgsl from '../shaders/colorGrade.wgsl?raw';
 import grainWgsl      from '../shaders/grain.wgsl?raw';
 import vignetteWgsl   from '../shaders/vignette.wgsl?raw';
 import flashFXWgsl    from '../shaders/flashFX.wgsl?raw';
+import skinSmoothWgsl from '../shaders/skinSmooth.wgsl?raw';
 
 /* ═══════════════════════════════════════════════════════════════
    LUT BUILDER — cubic spline through anchor points → 256 entries
@@ -107,7 +109,7 @@ function clamp01(x: number): number {
    FILTER PIPELINE — compute-shader plumbing
 ═══════════════════════════════════════════════════════════════ */
 
-export type PassName = 'colorGrade' | 'toneCurve' | 'flashFX' | 'vignette' | 'grain';
+export type PassName = 'colorGrade' | 'toneCurve' | 'flashFX' | 'vignette' | 'grain' | 'skinSmooth';
 
 export interface FilterPipeline {
   device:   GPUDevice;
@@ -167,6 +169,10 @@ export function createPipeline(device: GPUDevice): FilterPipeline {
   const layoutGrain     = makeLayout(device, 'grain.layout', [
     { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
   ]);
+  const layoutSkinSmooth = makeLayout(device, 'skinSmooth.layout', [
+    { binding: 3, visibility: GPUShaderStage.COMPUTE, texture: { sampleType: 'float' } },
+    { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer:  { type: 'uniform' } },
+  ]);
 
   // ── Pipelines ─────────────────────────────────────────────────────────────
   const compile = (label: string, src: string, layout: GPUBindGroupLayout): GPUComputePipeline =>
@@ -185,6 +191,7 @@ export function createPipeline(device: GPUDevice): FilterPipeline {
       flashFX:    compile('flashFX',    flashFXWgsl,    layoutFlashFX),
       vignette:   compile('vignette',   vignetteWgsl,   layoutVignette),
       grain:      compile('grain',      grainWgsl,      layoutGrain),
+      skinSmooth: compile('skinSmooth', skinSmoothWgsl, layoutSkinSmooth),
     },
     layouts: {
       colorGrade: layoutColorGrade,
@@ -192,6 +199,7 @@ export function createPipeline(device: GPUDevice): FilterPipeline {
       flashFX:    layoutFlashFX,
       vignette:   layoutVignette,
       grain:      layoutGrain,
+      skinSmooth: layoutSkinSmooth,
     },
   };
 }
@@ -234,9 +242,11 @@ function writeToneParams(
   const sharpness   = Math.max(0, (overrides.sharpness  ?? 0) / 100);
   const editTint    = (overrides.edittint   ?? 0) / 100;
 
+  const pushPull   = Math.max(-2, Math.min(2, overrides.pushPull ?? 0));
   const data = new Float32Array([
     fade, saturation, exposure, contrast,
     highlights, shadows, sharpness, editTint,
+    pushPull, 0, 0, 0,
   ]);
   device.queue.writeBuffer(buf, 0, data);
 }
@@ -269,15 +279,44 @@ function writeGradeParams(
   arr[o++] = (shift[2] - ct)        / 255;
   arr[o++] = 0;
 
-  // 6 hue bands, each 4 floats
-  const bands = preset.params.hueRotation?.bands ?? [];
+  // 6 hue bands, each 4 floats. The user-facing HSL panel layers six
+  // canonical bands on top of the preset's bands (matched by nearest centre).
+  const HSL_CENTERS: { key: string; c: number }[] = [
+    { key: 'reds',    c:   0 / 360 },
+    { key: 'oranges', c:  30 / 360 },
+    { key: 'yellows', c:  60 / 360 },
+    { key: 'greens',  c: 120 / 360 },
+    { key: 'blues',   c: 240 / 360 },
+    { key: 'purples', c: 290 / 360 },
+  ];
+  const presetBands = preset.params.hueRotation?.bands ?? [];
+  const presetUsed  = new Uint8Array(presetBands.length);
   for (let i = 0; i < 6; i++) {
-    const b = bands[i];
-    if (b) {
-      arr[o++] = b.center; arr[o++] = b.width; arr[o++] = b.rotation; arr[o++] = b.satMultiplier;
-    } else {
-      arr[o++] = 0; arr[o++] = 0; arr[o++] = 0; arr[o++] = 1;
+    const slot = HSL_CENTERS[i];
+    // Find an unused preset band whose centre is close to this canonical centre.
+    let matchIdx = -1, bestDist = 0.08;       // ~28° max gap
+    for (let j = 0; j < presetBands.length; j++) {
+      if (presetUsed[j]) continue;
+      const d0 = Math.abs(presetBands[j].center - slot.c);
+      const d  = Math.min(d0, 1 - d0);        // hue wraps
+      if (d < bestDist) { bestDist = d; matchIdx = j; }
     }
+    const baseCenter = matchIdx >= 0 ? presetBands[matchIdx].center        : slot.c;
+    const baseWidth  = matchIdx >= 0 ? presetBands[matchIdx].width         : 0.083;
+    const baseRot    = matchIdx >= 0 ? presetBands[matchIdx].rotation      : 0;
+    const baseSatMul = matchIdx >= 0 ? presetBands[matchIdx].satMultiplier : 1;
+    if (matchIdx >= 0) presetUsed[matchIdx] = 1;
+
+    // User overrides: hue in degrees -30..30, sat in slider scale -100..100
+    const uHueDeg = overrides[`hslHue_${slot.key}`] ?? 0;
+    const uSat    = overrides[`hslSat_${slot.key}`] ?? 0;
+    const userRot = uHueDeg / 360;
+    const userSat = uSat / 100;                /* -1..1 → +/- 100% */
+
+    arr[o++] = baseCenter;
+    arr[o++] = baseWidth;
+    arr[o++] = baseRot + userRot;
+    arr[o++] = baseSatMul + userSat;
   }
 
   // 3 split zones, each 4 floats
@@ -294,6 +333,18 @@ function writeGradeParams(
   arr[o++] = st?.strength ?? 0;
   arr[o++] = 0; arr[o++] = 0;
 
+  // Light leak — fields packed at the tail of GradeParams.
+  // Default off; PreviewCanvas injects leak* into overrides when enabled.
+  const lr = overrides.leakColorR ?? 1.0;
+  const lg = overrides.leakColorG ?? 0.5;
+  const lb = overrides.leakColorB ?? 0.2;
+  arr[o++] = lr; arr[o++] = lg; arr[o++] = lb;
+  arr[o++] = overrides.leakStrength ?? 0;
+  const u32 = new Uint32Array(arr.buffer, arr.byteOffset, arr.length);
+  u32[o]   = (overrides.leakEdge ?? 0) | 0;     o++;
+  arr[o++] = overrides.leakWidth ?? 0.30;
+  arr[o++] = 0; arr[o++] = 0;                   /* trailing pad to 256 */
+
   device.queue.writeBuffer(buf, 0, arr);
 }
 
@@ -305,18 +356,21 @@ function writeGrainParams(device: GPUDevice, buf: GPUBuffer,
   const g1 = preset.params.grain.pass1;
   const g2 = preset.params.grain.pass2;
   // Grain slider: default 33 = 1× preset baseline. 0 = no grain, 100 = ~3×.
+  // Push/Pull stop also multiplies grain (1.4^stops) so pushed film looks grainier.
   const grainMult = Math.max(0, (overrides.grain ?? 33) / 33);
+  const pushBoost = Math.pow(1.4, overrides.pushPull ?? 0);
+  const finalMult = grainMult * pushBoost;
 
   const arr = new Float32Array(16);   // 64 bytes
   let o = 0;
-  arr[o++] = g1.intensity * grainMult;
+  arr[o++] = g1.intensity * finalMult;
   arr[o++] = g1.size;
   arr[o++] = g1.chroma;
   arr[o++] = seed1;
   arr[o++] = g1.colorBias[0]; arr[o++] = g1.colorBias[1]; arr[o++] = g1.colorBias[2]; arr[o++] = 0;
 
   if (g2) {
-    arr[o++] = g2.intensity * grainMult;
+    arr[o++] = g2.intensity * finalMult;
     arr[o++] = g2.size; arr[o++] = g2.chroma; arr[o++] = seed2;
     arr[o++] = g2.colorBias[0]; arr[o++] = g2.colorBias[1]; arr[o++] = g2.colorBias[2]; arr[o++] = 0;
   } else {
@@ -362,14 +416,17 @@ function writeFlashParams(
   // Flash Position H/V sliders are 0..100 → 0..1 UV space
   const cx = overrides.flashPositionH != null ? overrides.flashPositionH / 100 : f.center[0];
   const cy = overrides.flashPositionV != null ? overrides.flashPositionV / 100 : f.center[1];
+  // Flash Strength slider 0..100 → 0..1 multiplier (default 1 = preset's full intensity).
+  // Scales every "amount" knob in the flash pass so the whole effect breathes together.
+  const flashAmt = Math.max(0, Math.min(1, (overrides.flashStrength ?? 100) / 100));
   const arr = new Float32Array(24);   // 96 bytes
   arr[0]  = cx;                    arr[1]  = cy;
   arr[2]  = f.falloffScale;        arr[3]  = f.falloffPower;
   arr[4]  = f.darkFloor;           arr[5]  = f.brightCeiling;
-  arr[6]  = f.strength;            arr[7]  = 0;                  /* _pad0 */
+  arr[6]  = f.strength * flashAmt; arr[7]  = 0;                  /* _pad0 */
 
-  arr[8]  = f.castColor[0];        arr[9]  = f.castColor[1];     arr[10] = f.castColor[2];   arr[11] = f.castStrength;
-  arr[12] = f.ambientColor[0];     arr[13] = f.ambientColor[1];  arr[14] = f.ambientColor[2]; arr[15] = f.ambientStrength;
+  arr[8]  = f.castColor[0];        arr[9]  = f.castColor[1];     arr[10] = f.castColor[2];   arr[11] = f.castStrength    * flashAmt;
+  arr[12] = f.ambientColor[0];     arr[13] = f.ambientColor[1];  arr[14] = f.ambientColor[2]; arr[15] = f.ambientStrength * flashAmt;
 
   arr[16] = f.ambientThreshold;
   arr[17] = f.caStrength;
@@ -423,12 +480,28 @@ function bindFor(pl: FilterPipeline, name: PassName,
  *                   it's a cheap no-op)
  *   5. grain        (always)
  */
+export interface ReferenceLUTOption {
+  R:        Float32Array;
+  G:        Float32Array;
+  B:        Float32Array;
+  strength: number;     /* 0..1 */
+}
+
+export interface SkinSmoothOption {
+  mask:     Uint8Array;   /* r8 mask, length = maskW * maskH */
+  maskW:    number;
+  maskH:    number;
+  strength: number;       /* 0..1 */
+}
+
 export async function renderFilter(
-  pipeline:      FilterPipeline,
-  device:        GPUDevice,
-  sourceTexture: GPUTexture,
-  preset:        FilterPreset,
+  pipeline:        FilterPipeline,
+  device:          GPUDevice,
+  sourceTexture:   GPUTexture,
+  preset:          FilterPreset,
   sliderOverrides: SliderOverrides,
+  referenceLUT?:   ReferenceLUTOption | null,
+  skinSmooth?:     SkinSmoothOption | null,
 ): Promise<GPUTexture> {
   const w = sourceTexture.width;
   const h = sourceTexture.height;
@@ -440,7 +513,7 @@ export async function renderFilter(
 
   // Uniform buffers (long-lived for the duration of this render)
   const ubGrade = alignedBuffer(device, 256, 'ub.colorGrade');
-  const ubTone  = alignedBuffer(device, 32,  'ub.tone');
+  const ubTone  = alignedBuffer(device, 48,  'ub.tone');
   const ubFlash = alignedBuffer(device, 96,  'ub.flash');
   const ubVig   = alignedBuffer(device, 48,  'ub.vignette');
   const ubGrain = alignedBuffer(device, 64,  'ub.grain');
@@ -451,11 +524,19 @@ export async function renderFilter(
   writeVignetteParams(device, ubVig, preset, sliderOverrides, aspect);
   writeGrainParams(device, ubGrain, preset, sliderOverrides);
 
-  // LUT storage buffers
+  // LUT storage buffers — compose with reference-photo histogram match if any
   const tc = preset.params.toneCurve;
-  const lutR = makeStorageF32(device, buildLUT(combineCurves(tc.composite, tc.red)),   'lut.R');
-  const lutG = makeStorageF32(device, buildLUT(combineCurves(tc.composite, tc.green)), 'lut.G');
-  const lutB = makeStorageF32(device, buildLUT(combineCurves(tc.composite, tc.blue)),  'lut.B');
+  let baseR = buildLUT(combineCurves(tc.composite, tc.red));
+  let baseG = buildLUT(combineCurves(tc.composite, tc.green));
+  let baseB = buildLUT(combineCurves(tc.composite, tc.blue));
+  if (referenceLUT && referenceLUT.strength > 0.001) {
+    baseR = composeLUT(baseR, referenceLUT.R, referenceLUT.strength);
+    baseG = composeLUT(baseG, referenceLUT.G, referenceLUT.strength);
+    baseB = composeLUT(baseB, referenceLUT.B, referenceLUT.strength);
+  }
+  const lutR = makeStorageF32(device, baseR, 'lut.R');
+  const lutG = makeStorageF32(device, baseG, 'lut.G');
+  const lutB = makeStorageF32(device, baseB, 'lut.B');
 
   const srcView = sourceTexture.createView();
   const aView   = texA.createView();
@@ -487,12 +568,44 @@ export async function renderFilter(
     { binding: 6, resource: { buffer: ubTone } },
   ]);
 
-  // 3. flashFX (optional) : B → A
+  // 3. skinSmooth (optional, masked) : B → A
   let lastOut = texB;
   let lastView = bView;
-  if (preset.params.flash) {
-    pass('flashFX', bView, aView, [{ binding: 3, resource: { buffer: ubFlash } }]);
+  let maskTex: GPUTexture | null = null;
+  let ubSkin:  GPUBuffer  | null = null;
+  if (skinSmooth && skinSmooth.strength > 0.001 && skinSmooth.mask.length === skinSmooth.maskW * skinSmooth.maskH) {
+    maskTex = device.createTexture({
+      label: 'skin.mask',
+      size:  [skinSmooth.maskW, skinSmooth.maskH, 1],
+      format: 'r8unorm',
+      usage:  GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    });
+    device.queue.writeTexture(
+      { texture: maskTex },
+      skinSmooth.mask,
+      { bytesPerRow: skinSmooth.maskW, rowsPerImage: skinSmooth.maskH },
+      { width: skinSmooth.maskW, height: skinSmooth.maskH, depthOrArrayLayers: 1 },
+    );
+    ubSkin = alignedBuffer(device, 16, 'ub.skin');
+    device.queue.writeBuffer(ubSkin, 0, new Float32Array([
+      Math.max(0, Math.min(1, skinSmooth.strength)),
+      0.08,    // similarity sigma — small = preserve edges
+      0, 0,
+    ]));
+    pass('skinSmooth', bView, aView, [
+      { binding: 3, resource: maskTex.createView() },
+      { binding: 4, resource: { buffer: ubSkin } },
+    ]);
     lastOut = texA; lastView = aView;
+  }
+
+  // 4. flashFX (optional) : lastView → other
+  if (preset.params.flash) {
+    const flashIn  = lastView;
+    const flashOut = lastOut === texA ? texB : texA;
+    const flashOutView = lastView === aView ? bView : aView;
+    pass('flashFX', flashIn, flashOutView, [{ binding: 3, resource: { buffer: ubFlash } }]);
+    lastOut = flashOut; lastView = flashOutView;
   }
 
   // 4. vignette : lastView → other
@@ -514,6 +627,7 @@ export async function renderFilter(
   if (grainOut !== texB) texB.destroy();
   lutR.destroy(); lutG.destroy(); lutB.destroy();
   ubGrade.destroy(); ubTone.destroy(); ubFlash.destroy(); ubVig.destroy(); ubGrain.destroy();
+  maskTex?.destroy(); ubSkin?.destroy();
 
   return grainOut;
 }

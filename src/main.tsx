@@ -7,6 +7,8 @@ import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
 import '@fontsource/dotgothic16/400.css';
+import '@fontsource/vt323/400.css';
+import '@fontsource/press-start-2p/400.css';
 import './index.css';
 
 import WelcomePage from './components/welcome/WelcomePage';

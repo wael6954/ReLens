@@ -1,5 +1,31 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useAppStore, useAppActions } from '../../stores/appStore';
+import { useAppStore, useAppActions, loadFreshPhoto, useTemporalAvailability, undo, redo } from '../../stores/appStore';
+
+function UndoRedoButtons() {
+  const { canUndo, canRedo } = useTemporalAvailability();
+  const cls = (enabled: boolean) => [
+    'w-7 h-7 inline-flex items-center justify-center rounded-sm border transition-colors',
+    enabled
+      ? 'border-film-border text-film-text hover:border-film-amber hover:text-film-amber'
+      : 'border-film-border text-film-text-dim opacity-40 cursor-not-allowed',
+  ].join(' ');
+  return (
+    <div className="flex items-center gap-1.5">
+      <button type="button" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" className={cls(canUndo)}>
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M2.5 5.5h7.5a3 3 0 0 1 0 6H6" />
+          <path d="M5 3 2.5 5.5 5 8" />
+        </svg>
+      </button>
+      <button type="button" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)" className={cls(canRedo)}>
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M13.5 5.5H6a3 3 0 0 0 0 6h4" />
+          <path d="M11 3l2.5 2.5L11 8" />
+        </svg>
+      </button>
+    </div>
+  );
+}
 
 function HintsToggle() {
   const enabled     = useAppStore((s) => s.hintsEnabled);
@@ -29,9 +55,12 @@ function HintsToggle() {
   );
 }
 
-export default function TopBar() {
+interface TopBarProps {
+  onBatchClick?: () => void;
+}
+
+export default function TopBar({ onBatchClick }: TopBarProps = {}) {
   const navigate    = useNavigate();
-  const { setPhoto } = useAppActions();
 
   async function pickPhoto() {
     const input = document.createElement('input');
@@ -41,7 +70,7 @@ export default function TopBar() {
       const file = input.files?.[0];
       if (!file) return;
       const bmp = await createImageBitmap(file);
-      setPhoto({ blob: file, filename: file.name, width: bmp.width, height: bmp.height });
+      loadFreshPhoto({ blob: file, filename: file.name, width: bmp.width, height: bmp.height });
       bmp.close?.();
     };
     input.click();
@@ -58,7 +87,17 @@ export default function TopBar() {
       </Link>
 
       <div className="flex items-center gap-5">
+        <UndoRedoButtons />
         <HintsToggle />
+        {onBatchClick && (
+          <button
+            type="button"
+            onClick={onBatchClick}
+            className="px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] font-sans font-medium text-film-text border border-film-border rounded-sm hover:border-film-amber hover:text-film-amber transition-colors"
+          >
+            Batch
+          </button>
+        )}
         <button
           type="button"
           onClick={() => navigate('/gallery')}

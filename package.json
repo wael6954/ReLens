@@ -1,7 +1,7 @@
 {
   "name": "relens",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,6 +13,9 @@
     "@fontsource/dm-serif-display": "^5.2.8",
     "@fontsource/dotgothic16": "^5.2.8",
     "@fontsource/inter": "^5.2.8",
+    "@fontsource/press-start-2p": "^5.2.7",
+    "@fontsource/vt323": "^5.2.7",
+    "@mediapipe/tasks-vision": "^0.10.35",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-fs": "^2.5.1",
@@ -21,6 +24,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.15.1",
+    "zundo": "^2.3.0",
     "zustand": "^5.0.13"
   },
   "devDependencies": {

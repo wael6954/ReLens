@@ -9,6 +9,8 @@ import {
 import { useFilterThumbnails } from '../../hooks/useFilterThumbnails';
 import type { FilterPipeline } from '../../utils/pipeline';
 import MoodTiles from './MoodTiles';
+import { applyUserPreset, deleteUserPreset, type UserPreset } from '../../utils/presetStorage';
+import { getFilterById } from '../../data/filters';
 
 interface FilterPanelProps {
   device:   GPUDevice      | null;
@@ -21,6 +23,7 @@ export default function FilterPanel({ device, pipeline }: FilterPanelProps) {
   const currentFilter = useAppStore((s) => s.currentFilter);
   const hintsEnabled  = useAppStore((s) => s.hintsEnabled);
   const currentPhoto  = useAppStore((s) => s.currentPhoto);
+  const userPresets   = useAppStore((s) => s.userPresets);
   const { setFilter, setSlider } = useAppActions();
 
   // Render thumbnails for ALL presets (not the search-filtered subset)
@@ -93,6 +96,50 @@ export default function FilterPanel({ device, pipeline }: FilterPanelProps) {
         </button>
 
         <div className="flex flex-col gap-5 mt-1">
+          {userPresets.length > 0 && !q && (
+            <section className="flex flex-col gap-2">
+              <header>
+                <h3 className="font-serif text-[12px] uppercase tracking-[0.22em] text-film-text">
+                  My Presets
+                </h3>
+                {hintsEnabled && (
+                  <p className="text-[11px] italic text-film-text-dim mt-1 leading-snug">
+                    Custom looks you've saved.
+                  </p>
+                )}
+              </header>
+              <ul className="flex flex-col gap-1">
+                {userPresets.map((p: UserPreset) => {
+                  const base = getFilterById(p.baseFilterId);
+                  return (
+                    <li key={p.id} className="group flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => applyUserPreset(p)}
+                        className="flex-1 text-left px-2.5 py-1.5 text-[11px] font-sans border border-film-border rounded-sm hover:border-film-amber hover:text-film-amber transition-colors text-film-text"
+                      >
+                        <div className="truncate">{p.name}</div>
+                        <div className="text-[9px] uppercase tracking-[0.14em] text-film-text-dim truncate">
+                          {base?.name ?? 'unknown'}
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Delete preset "${p.name}"?`)) void deleteUserPreset(p.id);
+                        }}
+                        title="Delete preset"
+                        className="opacity-0 group-hover:opacity-100 text-[14px] leading-none text-film-text-dim hover:text-red-400 transition-all px-1"
+                      >
+                        ×
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
           {FILTER_CATEGORIES.map((cat) => {
             const presetsInCat = FILTERS.filter(
               (f) => f.category === cat.id && visiblePresetIds.has(f.id),

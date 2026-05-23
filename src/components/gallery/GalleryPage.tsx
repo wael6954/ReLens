@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { zipSync } from 'fflate';
 
-import { useAppStore, useAppActions } from '../../stores/appStore';
+import { useAppStore, useAppActions, loadFreshPhoto } from '../../stores/appStore';
 import { FILTERS } from '../../data/filters';
 import { loadPhotoBlob, deletePhoto as fsDelete, exportPhoto } from '../../utils/storage';
 import { save } from '@tauri-apps/plugin-dialog';
@@ -84,7 +84,7 @@ function GalleryTopBar({ selectMode, hasPhotos, onToggleSelect }: GalleryTopBarP
 export default function GalleryPage() {
   const navigate     = useNavigate();
   const savedPhotos  = useAppStore((s) => s.savedPhotos);
-  const { setPhoto, setFilter, setSliders } = useAppActions();
+  const { setFilter, setSliders } = useAppActions();
 
   const [selectMode,  setSelectMode]  = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -122,7 +122,7 @@ export default function GalleryPage() {
     try {
       const blob = photo.blob ?? await loadPhotoBlob(photo.id);
       // Hydrate the editor: photo, filter, sliders
-      setPhoto({ blob, filename: photo.filename, width: photo.width, height: photo.height });
+      loadFreshPhoto({ blob, filename: photo.filename, width: photo.width, height: photo.height });
       const filterId = FILTERS.find((f) => f.name === photo.filterName)?.id ?? null;
       setFilter(filterId);
       setSliders(photo.sliderValues ?? {});

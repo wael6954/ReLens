@@ -20,6 +20,10 @@ struct ToneParams {
   shadows:     f32,
   sharpness:   f32,
   edit_tint:   f32,
+  push_pull:   f32,
+  _pad0:       f32,
+  _pad1:       f32,
+  _pad2:       f32,
 };
 
 @group(0) @binding(0) var inputTex:  texture_2d<f32>;
@@ -96,6 +100,14 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     c.g = clamp(c.g + params.edit_tint * 0.05, 0.0, 1.0);
     c.r = clamp(c.r - params.edit_tint * 0.02, 0.0, 1.0);
     c.b = clamp(c.b - params.edit_tint * 0.02, 0.0, 1.0);
+  }
+
+  // Push / Pull — film development simulator. Push (+) = more contrast +
+  // slight exposure lift, Pull (-) = flatter. Grain intensity is scaled
+  // separately in the grain shader so push is grainier, pull is cleaner.
+  if (abs(params.push_pull) > 0.001) {
+    c = clamp(mix(vec3f(0.5), c, 1.0 + params.push_pull * 0.18), vec3f(0.0), vec3f(1.0));
+    c = clamp(c * (1.0 + params.push_pull * 0.04),                vec3f(0.0), vec3f(1.0));
   }
 
   // Global saturation (combines preset + slider)

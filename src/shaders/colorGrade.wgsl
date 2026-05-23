@@ -29,6 +29,13 @@ struct GradeParams {
   split_balance: f32,
   split_str:     f32,
   _pad1:         vec2f,
+
+  // Light leak — screen-blended gradient anchored to one edge
+  leak_color:    vec3f,
+  leak_strength: f32,
+  leak_edge:     u32,      // 0=off, 1=left, 2=right, 3=top, 4=bottom
+  leak_width:    f32,
+  _pad2:         vec2f,
 };
 
 @group(0) @binding(0) var inputTex:  texture_2d<f32>;
@@ -99,6 +106,19 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
                              + hw * params.split_high.lum_shift) * 0.15 * params.split_str,
                     0.0, 1.0);
     c = hsl_to_rgb(stHsl);
+  }
+
+  // Light leak — gradient at one screen edge, screen-blended
+  if (params.leak_edge > 0u && params.leak_strength > 0.001) {
+    let lw = max(params.leak_width, 0.01);
+    var dist: f32 = 0.0;
+    if      (params.leak_edge == 1u) { dist = max(0.0, 1.0 - uv.x / lw); }
+    else if (params.leak_edge == 2u) { dist = max(0.0, (uv.x - (1.0 - lw)) / lw); }
+    else if (params.leak_edge == 3u) { dist = max(0.0, (uv.y - (1.0 - lw)) / lw); }
+    else if (params.leak_edge == 4u) { dist = max(0.0, 1.0 - uv.y / lw); }
+    let mask = dist * dist;
+    let leak = params.leak_color * (params.leak_strength * mask);
+    c = c + leak - c * leak;            // screen blend
   }
 
   textureStore(outputTex, vec2i(i32(gid.x), i32(gid.y)), vec4f(clamp(c, vec3f(0.0), vec3f(1.0)), 1.0));
