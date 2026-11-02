@@ -1,0 +1,96 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* Tailwind v4 theme tokens — mirror tailwind.config.js so utilities like
+   bg-film-black, text-film-amber, font-serif resolve without a JS config. */
+@theme {
+  --color-film-black:     #0e0d0c;
+  --color-film-dark:      #1a1816;
+  --color-film-surface:   #242220;
+  --color-film-border:    #3a3632;
+  --color-film-muted:     #6b6560;
+  --color-film-text:      #e8e0d5;
+  --color-film-text-dim:  #9e9690;
+  --color-film-amber:     #c8a96e;
+  --color-film-amber-dim: #8a7048;
+  --color-film-red:       #c45c3a;
+  --color-film-teal:      #4a8a7e;
+
+  --font-serif: "DM Serif Display", serif;
+  --font-sans:  "Inter", system-ui, sans-serif;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-film-black);
+  color:       var(--color-film-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -120% 0; }
+  100% { background-position:  220% 0; }
+}
+.shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.00) 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.00) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── Custom range input — track/thumb visuals are rendered as plain divs
+   underneath this input; the native chrome is fully neutralised so the
+   slider still owns keyboard / a11y / pointer behaviour.                    */
+.custom-range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  height: 16px;
+  cursor: pointer;
+}
+.custom-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(200, 169, 110, 0.35);
+}
+.custom-range::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 3px;
+}
+.custom-range::-moz-range-track {
+  background: transparent;
+  border: none;
+  height: 3px;
+}
+.custom-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--color-film-text);
+  margin-top: -5.5px;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  transition: box-shadow 0.15s;
+}
+.custom-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: var(--color-film-text);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
